@@ -1,6 +1,7 @@
 """FastAPI app: game selector, card search, and buylist."""
 from __future__ import annotations
 
+import datetime as dt
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request
@@ -13,6 +14,7 @@ from sqlalchemy.orm import Session
 from .db import get_session, init_db
 from .fabrary.client import FabraryError
 from .models import BuylistItem
+from .pricing.tcgplayer import TCGPlayerError, get_pricing
 from .providers import registry
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -159,4 +161,47 @@ def buylist_qty(
     if item:
         item.quantity = max(1, item.quantity + delta)
         db.commit()
+    return RedirectResponse("/buylist", status_code=303)
+
+
+# --- pricing ---------------------------------------------------------------
+
+def _refresh_price(item: BuylistItem) -> bool:
+    """Fetch TCGplayer pricing for one item and update it. Returns success."""
+    if not item.tcgplayer_product_id:
+        return False
+    result = get_pricing(item.tcgplayer_product_id)
+    item.price = result.current_price
+    item.suggested_price = result.suggested_price
+    item.price_sample_size = result.sample_size
+    item.currency = result.currency
+    item.price_updated_at = dt.datetime.now(dt.timezone.utc)
+    return True
+
+
+@app.post("/buylist/refresh-price")
+def buylist_refresh_price(
+    item_id: int = Form(...), db: Session = Depends(get_session)
+):
+    item = db.get(BuylistItem, item_id)
+    if item:
+        try:
+            _refresh_price(item)
+            db.commit()
+        except TCGPlayerError as e:
+            raise HTTPException(502, f"TCGplayer error: {e}")
+    return RedirectResponse("/buylist", status_code=303)
+
+
+@app.post("/buylist/refresh-all")
+def buylist_refresh_all(db: Session = Depends(get_session)):
+    items = db.scalars(
+        select(BuylistItem).where(BuylistItem.tcgplayer_product_id.is_not(None))
+    ).all()
+    for item in items:
+        try:
+            _refresh_price(item)
+        except TCGPlayerError:
+            continue  # skip items that fail; keep going
+    db.commit()
     return RedirectResponse("/buylist", status_code=303)

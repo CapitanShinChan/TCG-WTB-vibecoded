@@ -2,11 +2,16 @@
 {% if not items %}
   <p class="status">{{ empty_text | default("Buylist empty.") }}</p>
 {% else %}
+<div class="buylist-toolbar">
+  <form method="post" action="/buylist/refresh-all">
+    <button type="submit" class="refresh-all">↻ Refresh all prices</button>
+  </form>
+</div>
 <table class="buylist">
   <thead>
     <tr>
       <th></th><th>Card</th><th>Printing</th><th>Rarity</th>
-      <th>Qty</th><th>Price</th><th></th>
+      <th>Qty</th><th>Current</th><th>Suggested</th><th></th>
     </tr>
   </thead>
   <tbody>
@@ -42,10 +47,22 @@
         {% if it.price is not none %}
           {{ "%.2f"|format(it.price) }} {{ it.currency or "" }}
         {% else %}
-          <span class="placeholder">— price TBD —</span>
+          <span class="placeholder">—</span>
         {% endif %}
       </td>
-      <td>
+      <td class="price">
+        {% if it.suggested_price is not none %}
+          <strong>{{ "%.2f"|format(it.suggested_price) }} {{ it.currency or "" }}</strong>
+          <div class="sub">from {{ it.price_sample_size }} sale(s)</div>
+        {% else %}
+          <span class="placeholder">— not priced —</span>
+        {% endif %}
+      </td>
+      <td class="actions">
+        <form method="post" action="/buylist/refresh-price">
+          <input type="hidden" name="item_id" value="{{ it.id }}">
+          <button type="submit" class="qbtn" title="Refresh price from TCGplayer">↻</button>
+        </form>
         <form method="post" action="/buylist/remove">
           <input type="hidden" name="item_id" value="{{ it.id }}">
           <button type="submit" class="remove">Remove</button>

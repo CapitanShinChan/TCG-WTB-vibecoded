@@ -38,8 +38,11 @@ class BuylistItem(Base):
 
     quantity: Mapped[int] = mapped_column(Integer, default=1)
 
-    # pricing placeholder
-    price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # pricing (populated from TCGplayer on refresh)
+    price: Mapped[float | None] = mapped_column(Float, nullable=True)  # current market price
+    suggested_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    price_sample_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    price_updated_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
     currency: Mapped[str | None] = mapped_column(String, nullable=True)
     tcgplayer_product_id: Mapped[str | None] = mapped_column(String, nullable=True)
     tcgplayer_url: Mapped[str | None] = mapped_column(String, nullable=True)

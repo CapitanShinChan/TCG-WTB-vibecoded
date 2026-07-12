@@ -137,3 +137,9 @@ table.buylist { width: 100%; border-collapse: collapse; }
 .qbtn { background: var(--panel-2); color: var(--text); padding: 0.1rem 0.5rem; }
 .remove { background: transparent; color: var(--accent); border: 1px solid var(--border); }
 .ext { color: var(--accent-2); font-size: 0.75rem; margin-left: 0.4rem; text-decoration: none; }
+.buylist-toolbar { display: flex; justify-content: flex-end; margin-bottom: 0.5rem; }
+.buylist-toolbar form { margin: 0; }
+.refresh-all { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+.buylist .actions { white-space: nowrap; }
+.buylist .actions form { display: inline-block; margin: 0 0.2rem 0 0; vertical-align: middle; }
+.price .sub { font-size: 0.7rem; color: var(--muted); margin-top: 0.15rem; }
