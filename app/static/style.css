@@ -190,8 +190,17 @@ table.buylist { width: 100%; border-collapse: collapse; }
 .import-help ul { margin: 0.5rem 0 0; padding-left: 1.1rem; }
 .import-actions { display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem; }
 
-.preview-head { display: flex; align-items: center; justify-content: space-between; margin: 1rem 0 0.5rem; }
-.check-all { color: var(--muted); font-size: 0.9rem; }
+#preview-actions { margin: 1rem 0 0.75rem; }
+.action-row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.warn-banner {
+  background: rgba(224, 68, 46, 0.12);
+  border: 1px solid #6b2b23;
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.9rem;
+}
+button.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
 .preview-table { width: 100%; border-collapse: collapse; }
 .preview-table th, .preview-table td { padding: 0.45rem 0.5rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
 .preview-table th { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
