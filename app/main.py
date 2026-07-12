@@ -27,22 +27,38 @@ def _startup() -> None:
     init_db()
 
 
+def _load_buylist(db: Session) -> list[BuylistItem]:
+    """Buylist items, most recently added first."""
+    return list(
+        db.scalars(select(BuylistItem).order_by(BuylistItem.created_at.desc())).all()
+    )
+
+
 # --- pages -----------------------------------------------------------------
 
 @app.get("/", response_class=HTMLResponse)
-def index(request: Request):
+def index(request: Request, db: Session = Depends(get_session)):
     return templates.TemplateResponse(
-        request, "index.html", {"games": registry.all_games()}
+        request,
+        "index.html",
+        {"games": registry.all_games(), "items": _load_buylist(db)},
     )
 
 
 @app.get("/buylist", response_class=HTMLResponse)
 def buylist(request: Request, db: Session = Depends(get_session)):
-    items = db.scalars(
-        select(BuylistItem).order_by(BuylistItem.created_at.desc())
-    ).all()
     return templates.TemplateResponse(
-        request, "buylist.html", {"items": items, "games": registry.all_games()}
+        request,
+        "buylist.html",
+        {"items": _load_buylist(db), "games": registry.all_games()},
+    )
+
+
+@app.get("/partials/buylist", response_class=HTMLResponse)
+def buylist_partial(request: Request, db: Session = Depends(get_session)):
+    """Just the buylist table fragment, for live refresh on the search page."""
+    return templates.TemplateResponse(
+        request, "_buylist_table.html", {"items": _load_buylist(db)}
     )
 
 

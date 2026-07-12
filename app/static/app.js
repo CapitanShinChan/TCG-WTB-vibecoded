@@ -112,6 +112,7 @@ async function addToBuylist(card, p, btn) {
     const r = await fetch("/buylist/add", { method: "POST", body: fd });
     if (!r.ok) throw new Error(r.statusText);
     btn.textContent = "Added ✓";
+    await refreshBuylist();
   } catch (err) {
     btn.textContent = "Error";
     btn.disabled = false;
@@ -124,6 +125,36 @@ $("#modal-close").addEventListener("click", () => modal.classList.add("hidden"))
 modal.addEventListener("click", (e) => {
   if (e.target === modal) modal.classList.add("hidden");
 });
+
+// --- inline buylist (shown under the search) ------------------------------
+
+const buylistContainer = document.querySelector("#buylist-container");
+
+async function refreshBuylist() {
+  if (!buylistContainer) return;
+  try {
+    const r = await fetch("/partials/buylist");
+    if (r.ok) buylistContainer.innerHTML = await r.text();
+  } catch (_) {
+    /* leave the current markup in place on failure */
+  }
+}
+
+// Delegate qty/remove form submits to fetch + refresh, so they update in
+// place instead of navigating to /buylist. The listener lives on the
+// container, so it keeps working after innerHTML is replaced.
+if (buylistContainer) {
+  buylistContainer.addEventListener("submit", async (e) => {
+    const formEl = e.target;
+    if (!(formEl instanceof HTMLFormElement)) return;
+    e.preventDefault();
+    try {
+      await fetch(formEl.action, { method: "POST", body: new FormData(formEl) });
+    } finally {
+      await refreshBuylist();
+    }
+  });
+}
 
 function escapeHtml(s) {
   return String(s || "").replace(/[&<>"']/g, (c) => ({

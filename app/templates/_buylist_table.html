@@ -1,0 +1,58 @@
+{# Reusable buylist table. Expects: items (list). Optional: empty_text (str). #}
+{% if not items %}
+  <p class="status">{{ empty_text | default("Buylist empty.") }}</p>
+{% else %}
+<table class="buylist">
+  <thead>
+    <tr>
+      <th></th><th>Card</th><th>Printing</th><th>Rarity</th>
+      <th>Qty</th><th>Price</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for it in items %}
+    <tr>
+      <td class="thumb">
+        {% if it.image_url %}<img src="{{ it.image_url }}" alt="{{ it.card_name }}">{% endif %}
+      </td>
+      <td>{{ it.card_name }}</td>
+      <td>
+        {{ it.printing_label }}
+        {% if it.tcgplayer_url %}
+          <a class="ext" href="{{ it.tcgplayer_url }}" target="_blank" rel="noopener">TCGplayer ↗</a>
+        {% endif %}
+      </td>
+      <td>{{ it.rarity or "" }}</td>
+      <td class="qty">
+        <div class="qty-controls">
+          <form method="post" action="/buylist/qty">
+            <input type="hidden" name="item_id" value="{{ it.id }}">
+            <input type="hidden" name="delta" value="-1">
+            <button type="submit" class="qbtn">−</button>
+          </form>
+          <span>{{ it.quantity }}</span>
+          <form method="post" action="/buylist/qty">
+            <input type="hidden" name="item_id" value="{{ it.id }}">
+            <input type="hidden" name="delta" value="1">
+            <button type="submit" class="qbtn">+</button>
+          </form>
+        </div>
+      </td>
+      <td class="price">
+        {% if it.price is not none %}
+          {{ "%.2f"|format(it.price) }} {{ it.currency or "" }}
+        {% else %}
+          <span class="placeholder">— price TBD —</span>
+        {% endif %}
+      </td>
+      <td>
+        <form method="post" action="/buylist/remove">
+          <input type="hidden" name="item_id" value="{{ it.id }}">
+          <button type="submit" class="remove">Remove</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
