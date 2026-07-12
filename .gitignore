@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# App data
+*.db
+inventory.db
+
+# Scratch / temp
+scratch_*.py
+server.log
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

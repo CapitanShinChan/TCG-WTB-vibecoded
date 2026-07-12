@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Search — Card Inventory{% endblock %}
+{% block content %}
+<section class="search-panel">
+  <div class="controls">
+    <label>
+      Game
+      <select id="game">
+        {% for g in games %}
+        <option value="{{ g.game_id }}">{{ g.display_name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <form id="search-form" class="search-form">
+      <input id="query" type="text" placeholder="Search card name…" autocomplete="off">
+      <button type="submit">Search</button>
+    </form>
+  </div>
+  <p id="status" class="status"></p>
+</section>
+
+<section id="results" class="card-grid"></section>
+
+<!-- printings modal -->
+<div id="modal" class="modal hidden">
+  <div class="modal-box">
+    <button id="modal-close" class="modal-close">&times;</button>
+    <h2 id="modal-title"></h2>
+    <div id="printings" class="card-grid"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/app.js"></script>
+{% endblock %}

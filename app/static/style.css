@@ -1,0 +1,139 @@
+:root {
+  --bg: #0f1115;
+  --panel: #1a1d24;
+  --panel-2: #232733;
+  --text: #e7e9ee;
+  --muted: #9aa1b1;
+  --accent: #e0442e;
+  --accent-2: #2e7de0;
+  --border: #2b3040;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.brand { font-weight: 700; font-size: 1.1rem; text-decoration: none; color: var(--text); }
+.topbar nav a { color: var(--muted); text-decoration: none; margin-right: 1rem; }
+.topbar nav a:hover { color: var(--text); }
+
+main { max-width: 1100px; margin: 0 auto; padding: 1.25rem; }
+
+/* search */
+.search-panel { margin-bottom: 1rem; }
+.controls { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; }
+.controls label { display: flex; flex-direction: column; font-size: 0.8rem; color: var(--muted); gap: 0.25rem; }
+select, input[type=text] {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.95rem;
+}
+.search-form { display: flex; gap: 0.5rem; flex: 1; min-width: 260px; }
+.search-form input { flex: 1; }
+button {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+button:hover { filter: brightness(1.1); }
+button:disabled { opacity: 0.6; cursor: default; }
+.status { color: var(--muted); min-height: 1.2em; margin: 0.75rem 0; }
+
+/* card grid */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1rem;
+}
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.6rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  transition: transform 0.08s, border-color 0.08s;
+}
+.card:hover { transform: translateY(-2px); border-color: var(--accent-2); }
+.card-img {
+  aspect-ratio: 63 / 88;
+  background: var(--panel-2);
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card-img img { width: 100%; height: 100%; object-fit: contain; }
+.card-name { font-size: 0.85rem; font-weight: 600; }
+.card-sub { font-size: 0.72rem; color: var(--muted); }
+.price { font-size: 0.8rem; }
+.placeholder { color: var(--muted); font-style: italic; }
+.add-btn { background: var(--accent-2); margin-top: auto; }
+
+/* modal */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2rem 1rem;
+  overflow-y: auto;
+  z-index: 20;
+}
+.modal.hidden { display: none; }
+.modal-box {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  max-width: 900px;
+  width: 100%;
+  position: relative;
+}
+.modal-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.75rem;
+  background: transparent;
+  font-size: 1.5rem;
+  padding: 0.2rem 0.5rem;
+}
+
+/* buylist */
+table.buylist { width: 100%; border-collapse: collapse; }
+.buylist th, .buylist td { padding: 0.6rem 0.5rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
+.buylist th { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.buylist .thumb img { width: 46px; border-radius: 4px; }
+.buylist .qty { display: flex; align-items: center; gap: 0.4rem; }
+.buylist .qty form { display: inline; margin: 0; }
+.qbtn { background: var(--panel-2); color: var(--text); padding: 0.1rem 0.5rem; }
+.remove { background: transparent; color: var(--accent); border: 1px solid var(--border); }
+.ext { color: var(--accent-2); font-size: 0.75rem; margin-left: 0.4rem; text-decoration: none; }

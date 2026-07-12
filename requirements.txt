@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+jinja2
+sqlalchemy
+boto3
+requests
+python-multipart
