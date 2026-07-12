@@ -17,6 +17,17 @@
   <main>
     {% block content %}{% endblock %}
   </main>
+
+  <!-- shared recent-sales modal (used by the buylist suggested price) -->
+  <div id="sales-modal" class="modal hidden">
+    <div class="modal-box">
+      <button class="modal-close" data-close-sales>&times;</button>
+      <h2 id="sales-modal-title"></h2>
+      <div id="sales-modal-body"></div>
+    </div>
+  </div>
+
   {% block scripts %}{% endblock %}
+  <script src="/static/buylist.js"></script>
 </body>
 </html>

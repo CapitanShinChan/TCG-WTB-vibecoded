@@ -44,6 +44,17 @@ class PricingResult:
     currency: str = CURRENCY
 
 
+@dataclass
+class SalePoint:
+    """One sale bucket (TCGplayer aggregates sales into short date buckets)."""
+
+    date: str | None
+    quantity: int
+    low: float
+    high: float
+    price: float  # midpoint used in the suggested-price calc
+
+
 def fetch_price_history(product_id: str | int, range_: str = "quarter") -> dict:
     url = f"{INFINITE_BASE}/price/history/{product_id}/detailed"
     headers = {
@@ -125,3 +136,35 @@ def compute_pricing(data: dict) -> PricingResult:
 
 def get_pricing(product_id: str | int, range_: str = "quarter") -> PricingResult:
     return compute_pricing(fetch_price_history(product_id, range_))
+
+
+def extract_sales(data: dict) -> list[SalePoint]:
+    """Sale buckets for the selected SKU, newest first (same SKU the suggested
+    price is computed from)."""
+    sku = _select_sku(data.get("result") or [])
+    sales: list[SalePoint] = []
+    if not sku:
+        return sales
+    for b in sku.get("buckets") or []:  # buckets are newest-first
+        qty = int(_to_float(b.get("quantitySold")))
+        if qty <= 0:
+            continue
+        low = _to_float(b.get("lowSalePrice"))
+        high = _to_float(b.get("highSalePrice"))
+        if low <= 0 and high <= 0:
+            continue
+        mid = (low + high) / 2 if (low > 0 and high > 0) else (low or high)
+        sales.append(
+            SalePoint(
+                date=b.get("bucketStartDate"),
+                quantity=qty,
+                low=round(low, 2),
+                high=round(high, 2),
+                price=round(mid, 2),
+            )
+        )
+    return sales
+
+
+def get_sales(product_id: str | int, range_: str = "quarter") -> list[SalePoint]:
+    return extract_sales(fetch_price_history(product_id, range_))

@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from .db import get_session, init_db
 from .fabrary.client import FabraryError
 from .models import BuylistItem
-from .pricing.tcgplayer import TCGPlayerError, get_pricing
+from .pricing.tcgplayer import CURRENCY, TCGPlayerError, get_pricing, get_sales
 from .providers import registry
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -191,6 +191,16 @@ def buylist_refresh_price(
         except TCGPlayerError as e:
             raise HTTPException(502, f"TCGplayer error: {e}")
     return RedirectResponse("/buylist", status_code=303)
+
+
+@app.get("/api/sales/{product_id}")
+def api_sales(product_id: str):
+    """Recent sales for a TCGplayer product (feeds the suggested-price modal)."""
+    try:
+        sales = get_sales(product_id)
+    except TCGPlayerError as e:
+        raise HTTPException(502, f"TCGplayer error: {e}")
+    return {"currency": CURRENCY, "sales": [s.__dict__ for s in sales]}
 
 
 @app.post("/buylist/refresh-all")

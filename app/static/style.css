@@ -143,3 +143,24 @@ table.buylist { width: 100%; border-collapse: collapse; }
 .buylist .actions { white-space: nowrap; }
 .buylist .actions form { display: inline-block; margin: 0 0.2rem 0 0; vertical-align: middle; }
 .price .sub { font-size: 0.7rem; color: var(--muted); margin-top: 0.15rem; }
+
+/* clickable suggested price */
+.suggested-price-link {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+.suggested-price-link strong { border-bottom: 1px dashed var(--accent-2); }
+.suggested-price-link:hover strong { color: var(--accent-2); }
+.suggested-price-link .sub { display: block; font-size: 0.7rem; color: var(--muted); margin-top: 0.15rem; }
+
+/* sales modal table */
+.sales-table { width: 100%; border-collapse: collapse; }
+.sales-table th, .sales-table td { padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); text-align: left; }
+.sales-table th { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.sales-note { font-size: 0.7rem; margin-top: 0.75rem; }

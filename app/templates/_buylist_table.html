@@ -52,8 +52,13 @@
       </td>
       <td class="price">
         {% if it.suggested_price is not none %}
-          <strong>{{ "%.2f"|format(it.suggested_price) }} {{ it.currency or "" }}</strong>
-          <div class="sub">from {{ it.price_sample_size }} sale(s)</div>
+          <button type="button" class="suggested-price-link"
+                  data-product-id="{{ it.tcgplayer_product_id }}"
+                  data-card="{{ it.card_name }} — {{ it.printing_label }}"
+                  title="Show recent sales">
+            <strong>{{ "%.2f"|format(it.suggested_price) }} {{ it.currency or "" }}</strong>
+            <span class="sub">from {{ it.price_sample_size }} sale(s)</span>
+          </button>
         {% else %}
           <span class="placeholder">— not priced —</span>
         {% endif %}
