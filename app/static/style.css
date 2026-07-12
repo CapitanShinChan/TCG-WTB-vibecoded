@@ -164,3 +164,60 @@ table.buylist { width: 100%; border-collapse: collapse; }
 .sales-table th, .sales-table td { padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); text-align: left; }
 .sales-table th { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
 .sales-note { font-size: 0.7rem; margin-top: 0.75rem; }
+
+/* generic hidden helper */
+.hidden { display: none; }
+
+/* import page */
+.import-panel textarea {
+  width: 100%;
+  margin-top: 0.75rem;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.6rem;
+  font: 0.9rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  resize: vertical;
+}
+.import-help { margin: 0.6rem 0; color: var(--muted); font-size: 0.85rem; }
+.import-help code {
+  background: var(--panel-2);
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  color: var(--text);
+}
+.import-help ul { margin: 0.5rem 0 0; padding-left: 1.1rem; }
+.import-actions { display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem; }
+
+.preview-head { display: flex; align-items: center; justify-content: space-between; margin: 1rem 0 0.5rem; }
+.check-all { color: var(--muted); font-size: 0.9rem; }
+.preview-table { width: 100%; border-collapse: collapse; }
+.preview-table th, .preview-table td { padding: 0.45rem 0.5rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
+.preview-table th { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.preview-table .thumb img.mini { width: 34px; border-radius: 3px; display: block; }
+.preview-table .qty-input { width: 3.2rem; padding: 0.2rem 0.3rem; }
+.preview-table tr.st-not_found td,
+.preview-table tr.st-no_printing td,
+.preview-table tr.st-parse_error td { color: var(--muted); }
+
+.status-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+.status-badge.matched { color: #7dd65a; border-color: #35632a; }
+.status-badge.not_found,
+.status-badge.no_printing,
+.status-badge.parse_error { color: var(--accent); border-color: #6b2b23; }
+.badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  background: var(--panel-2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}

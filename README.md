@@ -36,8 +36,13 @@ Then open http://127.0.0.1:8000
 
 - **Search**: pick a game, type a card name, browse results (images preloaded
   from the provider). Click a card to see every printing, then "Add to buylist".
-- **Buylist**: view/adjust quantities and remove items. Prices show as
-  placeholders until price lookup is implemented.
+- **Import**: paste a card list and add many at once. Format is one card per
+  line, `Nx [CODES] Name`, e.g. `3x Tempestuous Kiss` or
+  `1x CF EA Flowstate Embodiment`. Codes: `RF` Rainbow Foil, `CF` Cold Foil,
+  `MV` Marvel, `NF` Non Foil (standard), `EA` Extended Art. Each line is
+  validated against the provider (exact name + matching printing); a preview
+  shows what matched before you add the selected rows.
+- **Buylist**: view/adjust quantities, remove items, and refresh prices.
 
 ## Architecture
 
@@ -45,6 +50,7 @@ Then open http://127.0.0.1:8000
 app/
   main.py              FastAPI routes (pages + JSON API + buylist mutations)
   db.py, models.py     SQLite via SQLAlchemy (BuylistItem)
+  importer.py          parse pasted card lists + resolve lines to printings
   providers/
     base.py            GameProvider ABC + CardResult / Printing dataclasses
     registry.py        game_id -> provider registry (drives the UI selector)

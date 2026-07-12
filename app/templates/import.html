@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Import — Card Inventory{% endblock %}
+{% block content %}
+<h1>Import list</h1>
+
+<section class="import-panel">
+  <div class="controls">
+    <label>
+      Game
+      <select id="game">
+        {% for g in games %}
+        <option value="{{ g.game_id }}">{{ g.display_name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </div>
+
+  <textarea id="import-text" rows="12" placeholder="3x Tempestuous Kiss
+2x Arcanic Reproach
+1x RF Flowstate Embodiment
+1x CF EA Flowstate Embodiment"></textarea>
+
+  <details class="import-help">
+    <summary>Printing codes</summary>
+    <ul>
+      <li><code>RF</code> Rainbow Foil &middot; <code>CF</code> Cold Foil &middot;
+          <code>MV</code> Marvel &middot; <code>NF</code> Non Foil (standard)</li>
+      <li><code>EA</code> Extended Art (combine, e.g. <code>1x CF EA Flowstate Embodiment</code>)</li>
+      <li>No code &rarr; standard non-foil printing. Quantity prefix like <code>3x</code> is optional.</li>
+    </ul>
+  </details>
+
+  <div class="import-actions">
+    <button id="preview-btn" type="button">Preview</button>
+    <span id="import-status" class="status"></span>
+  </div>
+</section>
+
+<section id="preview-section" class="hidden">
+  <div class="preview-head">
+    <label class="check-all"><input type="checkbox" id="select-all" checked> Select all matched</label>
+    <button id="commit-btn" type="button">Add selected to buylist</button>
+  </div>
+  <table id="preview-table" class="preview-table">
+    <thead>
+      <tr><th></th><th></th><th>Qty</th><th>Input</th><th>Matched printing</th><th>Status</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <p id="commit-result" class="status"></p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/import.js"></script>
+{% endblock %}
