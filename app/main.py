@@ -38,6 +38,8 @@ BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 # exposed to every template so the frontend can gate console debug messages
 templates.env.globals["app_debug"] = DEBUG
+# printing-code display (NF/CF/RF/EA) used by the buylist table
+templates.env.filters["printing_code"] = export.display_printing
 
 app = FastAPI(title="Card Inventory")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")

@@ -32,6 +32,15 @@ def codes_for(item: BuylistItem) -> str:
     return " ".join(parts)
 
 
+def display_printing(item: BuylistItem) -> str:
+    """Short printing code for display/sorting: NF/CF/RF/MV, plus EA.
+    (Standard/non-foil shows as NF, unlike the import codes where it's blank.)"""
+    code = _FOILING_CODE.get(item.foiling or "", "NF")
+    if (item.treatment or "").strip().lower() == "extended art":
+        code += " EA"
+    return code
+
+
 def _price_str(value: float | None) -> str:
     if value is None:
         return ""

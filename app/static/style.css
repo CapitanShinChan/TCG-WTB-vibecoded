@@ -131,6 +131,10 @@ button:disabled { opacity: 0.6; cursor: default; }
 table.buylist { width: 100%; border-collapse: collapse; }
 .buylist th, .buylist td { padding: 0.6rem 0.5rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
 .buylist th { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.buylist th[data-col] { cursor: pointer; user-select: none; }
+.buylist th[data-col]:hover { color: var(--text); }
+.buylist th.sort-asc::after { content: " ▲"; font-size: 0.7em; }
+.buylist th.sort-desc::after { content: " ▼"; font-size: 0.7em; }
 .buylist .thumb img { width: 46px; border-radius: 4px; }
 .buylist .qty-controls { display: inline-flex; align-items: center; gap: 0.4rem; }
 .buylist .qty-controls form { display: inline; margin: 0; }

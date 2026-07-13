@@ -78,3 +78,43 @@
     }[c]));
   }
 })();
+
+// --- sortable buylist table -----------------------------------------------
+// Delegated on document so it works on both /buylist and the inline buylist,
+// and survives the inline table being re-rendered after add/qty/remove.
+(function () {
+  document.addEventListener("click", (e) => {
+    const th = e.target.closest("table.buylist thead th[data-col]");
+    if (!th) return;
+    const table = th.closest("table.buylist");
+    const tbody = table.querySelector("tbody");
+    const idx = Array.prototype.indexOf.call(th.parentElement.children, th);
+    const numeric = th.dataset.type === "num";
+    const asc = !th.classList.contains("sort-asc");
+
+    const cellVal = (row) => {
+      const cell = row.children[idx];
+      return cell.dataset.sort != null ? cell.dataset.sort : cell.textContent.trim();
+    };
+    const rows = Array.from(tbody.querySelectorAll("tr"));
+    rows.sort((a, b) => {
+      let va = cellVal(a);
+      let vb = cellVal(b);
+      if (numeric) {
+        va = parseFloat(va) || 0;
+        vb = parseFloat(vb) || 0;
+        return asc ? va - vb : vb - va;
+      }
+      return asc
+        ? String(va).localeCompare(String(vb))
+        : String(vb).localeCompare(String(va));
+    });
+    rows.forEach((r) => tbody.appendChild(r));
+
+    table
+      .querySelectorAll("thead th")
+      .forEach((h) => h.classList.remove("sort-asc", "sort-desc"));
+    th.classList.add(asc ? "sort-asc" : "sort-desc");
+    if (window.dbg) dbg("sort buylist", { col: th.textContent.trim(), asc });
+  });
+})();

@@ -10,8 +10,15 @@
 <table class="buylist">
   <thead>
     <tr>
-      <th></th><th>Card</th><th>Printing</th><th>Rarity</th>
-      <th>Qty</th><th>Current</th><th>Suggested</th><th></th>
+      <th></th>
+      <th data-col data-type="text">Card</th>
+      <th data-col data-type="text">Set</th>
+      <th data-col data-type="text">Printing</th>
+      <th>Rarity</th>
+      <th data-col data-type="num">Qty</th>
+      <th data-col data-type="num">Current</th>
+      <th data-col data-type="num">Suggested</th>
+      <th></th>
     </tr>
   </thead>
   <tbody>
@@ -20,15 +27,16 @@
       <td class="thumb">
         {% if it.image_url %}<img src="{{ it.image_url }}" alt="{{ it.card_name }}">{% endif %}
       </td>
-      <td>{{ it.card_name }}</td>
-      <td>
-        {{ it.printing_label }}
+      <td data-sort="{{ it.card_name }}">{{ it.card_name }}</td>
+      <td data-sort="{{ it.set_code or '' }}">{{ it.set_code or "" }}</td>
+      <td data-sort="{{ it | printing_code }}">
+        {{ it | printing_code }}
         {% if it.tcgplayer_url %}
           <a class="ext" href="{{ it.tcgplayer_url }}" target="_blank" rel="noopener">TCGplayer ↗</a>
         {% endif %}
       </td>
       <td>{{ it.rarity or "" }}</td>
-      <td class="qty">
+      <td class="qty" data-sort="{{ it.quantity }}">
         <div class="qty-controls">
           <form method="post" action="/buylist/qty">
             <input type="hidden" name="item_id" value="{{ it.id }}">
@@ -43,14 +51,14 @@
           </form>
         </div>
       </td>
-      <td class="price">
+      <td class="price" data-sort="{{ it.price if it.price is not none else -1 }}">
         {% if it.price is not none %}
           {{ "%.2f"|format(it.price) }} {{ it.currency or "" }}
         {% else %}
           <span class="placeholder">—</span>
         {% endif %}
       </td>
-      <td class="price">
+      <td class="price" data-sort="{{ it.suggested_price if it.suggested_price is not none else -1 }}">
         {% if it.suggested_price is not none %}
           <button type="button" class="suggested-price-link"
                   data-product-id="{{ it.tcgplayer_product_id }}"
