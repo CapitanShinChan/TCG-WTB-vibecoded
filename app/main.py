@@ -235,6 +235,7 @@ def buylist_add(
     currency: str | None = Form(None),
     tcgplayer_product_id: str | None = Form(None),
     tcgplayer_url: str | None = Form(None),
+    quantity: int = Form(1),
     db: Session = Depends(get_session),
 ):
     _upsert_buylist_item(
@@ -252,7 +253,7 @@ def buylist_add(
         currency=currency,
         tcgplayer_product_id=tcgplayer_product_id,
         tcgplayer_url=tcgplayer_url,
-        quantity=1,
+        quantity=max(1, quantity),
     )
     db.commit()
     return JSONResponse({"ok": True})

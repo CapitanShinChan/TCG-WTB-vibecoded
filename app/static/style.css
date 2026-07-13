@@ -168,6 +168,29 @@ table.buylist { width: 100%; border-collapse: collapse; }
 /* generic hidden helper */
 .hidden { display: none; }
 
+/* quantity prompt overlay */
+.qty-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 30;
+}
+.qty-overlay.hidden { display: none; }
+.qty-box {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  width: min(360px, 92vw);
+}
+.qty-box p { margin: 0 0 0.75rem; font-weight: 600; }
+.qty-box label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; color: var(--muted); }
+.qty-box input { font-size: 1.1rem; padding: 0.4rem 0.5rem; }
+.qty-buttons { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1rem; }
+
 /* import page */
 .import-panel textarea {
   width: 100%;

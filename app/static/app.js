@@ -84,13 +84,62 @@ function renderPrintings(card, printings) {
     `;
     el.querySelector(".add-btn").addEventListener("click", (ev) => {
       ev.stopPropagation();
-      addToBuylist(card, p, ev.target);
+      openQtyPrompt(card, p);
     });
     printingsEl.appendChild(el);
   }
 }
 
-async function addToBuylist(card, p, btn) {
+// --- quantity prompt ------------------------------------------------------
+
+const qtyOverlay = $("#qty-overlay");
+const qtyInput = $("#qty-input");
+const qtyLabel = $("#qty-prompt-label");
+let pendingAdd = null; // { card, p }
+
+function openQtyPrompt(card, p) {
+  pendingAdd = { card, p };
+  qtyLabel.textContent = `${card.name} — ${p.label}`;
+  qtyInput.value = "1";
+  qtyOverlay.classList.remove("hidden");
+  qtyInput.focus();
+  qtyInput.select();
+}
+
+function closeQtyPrompt() {
+  qtyOverlay.classList.add("hidden");
+  pendingAdd = null;
+}
+
+$("#qty-cancel").addEventListener("click", closeQtyPrompt);
+qtyOverlay.addEventListener("click", (e) => {
+  if (e.target === qtyOverlay) closeQtyPrompt();
+});
+qtyInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") confirmQtyPrompt();
+  if (e.key === "Escape") closeQtyPrompt();
+});
+$("#qty-confirm").addEventListener("click", confirmQtyPrompt);
+
+async function confirmQtyPrompt() {
+  if (!pendingAdd) return;
+  const quantity = Math.max(1, parseInt(qtyInput.value, 10) || 1);
+  const { card, p } = pendingAdd;
+  const confirmBtn = $("#qty-confirm");
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = "Adding…";
+  try {
+    await addToBuylist(card, p, quantity);
+    closeQtyPrompt();
+  } catch (err) {
+    confirmBtn.textContent = "Error";
+  } finally {
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = "Add";
+  }
+}
+
+async function addToBuylist(card, p, quantity) {
   const game = gameSel.value;
   const fd = new FormData();
   fd.append("game", game);
@@ -98,6 +147,7 @@ async function addToBuylist(card, p, btn) {
   fd.append("card_name", card.name);
   fd.append("printing_id", p.identifier);
   fd.append("printing_label", p.label);
+  fd.append("quantity", String(quantity));
   if (p.set_code) fd.append("set_code", p.set_code);
   if (p.foiling) fd.append("foiling", p.foiling);
   if (p.treatment) fd.append("treatment", p.treatment);
@@ -106,17 +156,9 @@ async function addToBuylist(card, p, btn) {
   if (p.currency) fd.append("currency", p.currency);
   if (p.price_source_id) fd.append("tcgplayer_product_id", p.price_source_id);
   if (p.price_source_url) fd.append("tcgplayer_url", p.price_source_url);
-  btn.disabled = true;
-  btn.textContent = "Adding…";
-  try {
-    const r = await fetch("/buylist/add", { method: "POST", body: fd });
-    if (!r.ok) throw new Error(r.statusText);
-    btn.textContent = "Added ✓";
-    await refreshBuylist();
-  } catch (err) {
-    btn.textContent = "Error";
-    btn.disabled = false;
-  }
+  const r = await fetch("/buylist/add", { method: "POST", body: fd });
+  if (!r.ok) throw new Error(r.statusText);
+  await refreshBuylist();
 }
 
 // --- modal close ----------------------------------------------------------

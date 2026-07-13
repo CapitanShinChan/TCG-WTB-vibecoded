@@ -28,6 +28,20 @@
   </div>
 </section>
 
+<!-- quantity prompt (shown when adding a printing to the buylist) -->
+<div id="qty-overlay" class="qty-overlay hidden">
+  <div class="qty-box">
+    <p id="qty-prompt-label"></p>
+    <label>Quantity
+      <input type="number" id="qty-input" min="1" value="1">
+    </label>
+    <div class="qty-buttons">
+      <button type="button" id="qty-cancel" class="secondary">Cancel</button>
+      <button type="button" id="qty-confirm">Add</button>
+    </div>
+  </div>
+</div>
+
 <!-- printings modal -->
 <div id="modal" class="modal hidden">
   <div class="modal-box">
