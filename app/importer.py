@@ -96,6 +96,21 @@ def _is_alt_art(p: Printing) -> bool:
     return any(ident.startswith(pfx) for pfx in _ALT_ART_PREFIXES)
 
 
+def _is_short_print(p: Printing) -> bool:
+    """Short-printed sets whose prices skew high; avoided when auto-picking a
+    printing on import: History Pack, any First Edition, Welcome to Rathe Alpha.
+    """
+    set_name = (p.set_code or "").strip()
+    edition = (p.edition or "").strip()
+    if set_name.startswith("History Pack"):
+        return True
+    if edition == "First":
+        return True
+    if set_name == "Welcome to Rathe" and edition == "Alpha":
+        return True
+    return False
+
+
 def _match_printing(
     printings: list[Printing], foiling: str | None, want_ea: bool
 ) -> Printing | None:
@@ -107,8 +122,12 @@ def _match_printing(
         candidates = non_ea or candidates  # accept EA-only if that's all there is
     if not candidates:
         return None
-    # prefer a printing that has a TCGplayer product id (so it can be priced)
-    candidates.sort(key=lambda p: 0 if p.price_source_id else 1)
+    # prefer normal (non short-print) sets, then a printing that has a
+    # TCGplayer product id (so it can be priced). Short-print sets are only
+    # used when nothing else matches the requested foiling.
+    candidates.sort(
+        key=lambda p: (_is_short_print(p), 0 if p.price_source_id else 1)
+    )
     return candidates[0]
 
 
