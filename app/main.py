@@ -5,14 +5,20 @@ import datetime as dt
 import time
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi import Depends, FastAPI, Form, HTTPException, Query, Request
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    RedirectResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from . import export
 from .config import DEBUG
 from .db import get_session, init_db
 from .fabrary.client import FabraryError
@@ -125,6 +131,86 @@ def api_printings(game: str, id: str):
     return {
         "printings": [{**p.__dict__, "label": p.label} for p in printings]
     }
+
+
+# --- export (Discord + .txt) -----------------------------------------------
+
+_STANDARD_LABEL = "Standard"  # UI label for a non-foil (foiling is None)
+
+
+def _export_filter_options(items) -> tuple[list[str], list[str]]:
+    sets = sorted(
+        {export.set_of(it) for it in items},
+        key=lambda s: (s == "Others", s.lower()),
+    )
+    foilings = sorted({it.foiling or _STANDARD_LABEL for it in items})
+    return sets, foilings
+
+
+def _apply_export_filters(items, sets, foilings, price_min, price_max):
+    set_filter = set(sets) if sets else None
+    foiling_filter = None
+    if foilings:
+        # map the UI "Standard" label back to a None foiling
+        foiling_filter = {None if f == _STANDARD_LABEL else f for f in foilings}
+    return export.filter_items(
+        items,
+        sets=set_filter,
+        foilings=foiling_filter,
+        price_min=price_min,
+        price_max=price_max,
+    )
+
+
+@app.get("/export", response_class=HTMLResponse)
+def export_page(request: Request, db: Session = Depends(get_session)):
+    sets, foilings = _export_filter_options(_load_buylist(db))
+    return templates.TemplateResponse(
+        request,
+        "export.html",
+        {"games": registry.all_games(), "sets": sets, "foilings": foilings},
+    )
+
+
+@app.get("/api/export")
+def api_export(
+    db: Session = Depends(get_session),
+    sets: list[str] | None = Query(None),
+    foilings: list[str] | None = Query(None),
+    price_min: float | None = None,
+    price_max: float | None = None,
+):
+    items = _apply_export_filters(
+        _load_buylist(db), sets, foilings, price_min, price_max
+    )
+    return {
+        "count": len(items),
+        "discord": export.discord_text(items),
+        "reimport": export.reimport_text(items),
+    }
+
+
+@app.get("/export/download")
+def export_download(
+    fmt: str = "discord",
+    db: Session = Depends(get_session),
+    sets: list[str] | None = Query(None),
+    foilings: list[str] | None = Query(None),
+    price_min: float | None = None,
+    price_max: float | None = None,
+):
+    items = _apply_export_filters(
+        _load_buylist(db), sets, foilings, price_min, price_max
+    )
+    if fmt == "reimport":
+        body, filename = export.reimport_text(items), "buylist.txt"
+    else:
+        body, filename = export.discord_text(items), "buylist_discord.txt"
+    return PlainTextResponse(
+        body,
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # --- list import -----------------------------------------------------------

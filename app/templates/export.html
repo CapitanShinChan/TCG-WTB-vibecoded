@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Export — Card Inventory{% endblock %}
+{% block content %}
+<h1>Export buylist</h1>
+
+<section class="export-filters">
+  <div class="filter-group">
+    <h3>Sets</h3>
+    <div class="checks">
+      {% for s in sets %}
+      <label><input type="checkbox" class="f-set" value="{{ s }}" checked> {{ s }}</label>
+      {% endfor %}
+      {% if not sets %}<p class="status">Buylist is empty.</p>{% endif %}
+    </div>
+  </div>
+
+  <div class="filter-group">
+    <h3>Printing</h3>
+    <div class="checks">
+      {% for f in foilings %}
+      <label><input type="checkbox" class="f-foiling" value="{{ f }}" checked> {{ f }}</label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="filter-group">
+    <h3>Suggested price</h3>
+    <label class="range">min $ <input type="number" id="price-min" min="0" step="0.5" placeholder="any"></label>
+    <label class="range">max $ <input type="number" id="price-max" min="0" step="0.5" placeholder="any"></label>
+    <p class="hint">Items with no suggested price are excluded when a range is set.</p>
+  </div>
+
+  <div class="filter-actions">
+    <button id="generate-btn" type="button">Generate</button>
+    <span id="export-count" class="status"></span>
+  </div>
+</section>
+
+<section class="export-outputs">
+  <div class="output-col">
+    <div class="output-head">
+      <h3>Discord message</h3>
+      <div>
+        <button type="button" class="copy-btn" data-target="discord-text">Copy</button>
+        <button type="button" class="dl-btn" data-fmt="discord">Download .txt</button>
+      </div>
+    </div>
+    <textarea id="discord-text" rows="16" readonly></textarea>
+  </div>
+
+  <div class="output-col">
+    <div class="output-head">
+      <h3>Re-importable list</h3>
+      <div>
+        <button type="button" class="copy-btn" data-target="reimport-text">Copy</button>
+        <button type="button" class="dl-btn" data-fmt="reimport">Download .txt</button>
+      </div>
+    </div>
+    <textarea id="reimport-text" rows="16" readonly></textarea>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/export.js"></script>
+{% endblock %}

@@ -43,6 +43,10 @@ Then open http://127.0.0.1:8000
   validated against the provider (exact name + matching printing); a preview
   shows what matched before you add the selected rows.
 - **Buylist**: view/adjust quantities, remove items, and refresh prices.
+- **Export**: filter the buylist (by set, printing/foiling, suggested-price
+  range) and export either a Discord "WTB" message (grouped by set, with
+  suggested prices) or a re-importable `.txt` list. Copy to clipboard or
+  download.
 
 ## Architecture
 

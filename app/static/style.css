@@ -254,3 +254,40 @@ button.secondary { background: var(--panel-2); color: var(--text); border: 1px s
   color: var(--muted);
   border: 1px solid var(--border);
 }
+
+/* export page */
+.export-filters {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+.filter-group h3 { margin: 0 0 0.5rem; font-size: 0.9rem; }
+.filter-group .checks { display: flex; flex-direction: column; gap: 0.25rem; max-height: 220px; overflow-y: auto; }
+.filter-group label { font-size: 0.85rem; display: flex; align-items: center; gap: 0.4rem; }
+.filter-group .range { display: inline-flex; gap: 0.4rem; align-items: center; margin-right: 0.75rem; }
+.filter-group .range input { width: 5rem; }
+.filter-group .hint { font-size: 0.72rem; color: var(--muted); margin: 0.5rem 0 0; }
+.filter-actions { display: flex; flex-direction: column; gap: 0.5rem; align-self: center; }
+
+.export-outputs { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.output-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem; }
+.output-head h3 { margin: 0; font-size: 0.9rem; }
+.output-head button { margin-left: 0.4rem; }
+.export-outputs textarea {
+  width: 100%;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.6rem;
+  font: 0.85rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  resize: vertical;
+}
+.copy-btn, .dl-btn { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); font-size: 0.8rem; }
+@media (max-width: 720px) { .export-outputs { grid-template-columns: 1fr; } }
