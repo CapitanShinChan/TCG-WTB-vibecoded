@@ -15,6 +15,7 @@ The current price is the most recent bucket's market price.
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import requests
@@ -143,6 +144,25 @@ def _current_market_price(sku: dict) -> float | None:
     return None
 
 
+def _round_price(value: float) -> float:
+    """Round a suggested price to the nearest .00 or .50.
+
+    Boundaries (by the fractional part f of the value):
+      f <= .30            -> whole (.00)   e.g. 3.20 -> 3.00, 3.30 -> 3.00
+      .30 < f < .75       -> half (.50)    e.g. 3.60 -> 3.50
+      f >= .75            -> next whole    e.g. 3.80 -> 4.00
+    The .30 lower cutoff is intentional (per spec); the .75 upper cutoff is the
+    round-to-nearest midpoint between .50 and the next whole.
+    """
+    base = math.floor(value)
+    frac = value - base
+    if frac <= 0.30:
+        return float(base)
+    if frac < 0.75:
+        return base + 0.5
+    return float(base + 1)
+
+
 def _trimmed_mean(prices: list[float]) -> float | None:
     if not prices:
         return None
@@ -161,9 +181,15 @@ def compute_pricing(data: dict, variant: str | None = None) -> PricingResult:
     # _weighted_sale_prices is newest-first; keep only the most recent sales
     prices = _weighted_sale_prices(sku)[:RECENT_SALES_CAP]
     suggested = _trimmed_mean(prices)
+    current = _current_market_price(sku)
+    if suggested is not None:
+        # never suggest more than the current market price
+        if current is not None and current < suggested:
+            suggested = current
+        suggested = _round_price(suggested)
     return PricingResult(
-        current_price=_current_market_price(sku),
-        suggested_price=round(suggested, 2) if suggested is not None else None,
+        current_price=current,
+        suggested_price=suggested,
         sample_size=len(prices),
     )
 
