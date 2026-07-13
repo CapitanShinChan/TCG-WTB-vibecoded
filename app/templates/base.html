@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Card Inventory{% endblock %}</title>
   <link rel="stylesheet" href="/static/style.css">
+  <script>window.APP_DEBUG = {{ app_debug | tojson }};</script>
+  <script src="/static/debug.js"></script>
 </head>
 <body>
   <header class="topbar">

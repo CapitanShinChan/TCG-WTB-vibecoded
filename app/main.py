@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import time
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request
@@ -12,9 +13,11 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .config import DEBUG
 from .db import get_session, init_db
 from .fabrary.client import FabraryError
 from .importer import parse_list, resolve_list
+from .logging_setup import log_http, setup_logging
 from .models import BuylistItem
 from .pricing.tcgplayer import (
     CURRENCY,
@@ -27,6 +30,8 @@ from .providers import registry
 
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+# exposed to every template so the frontend can gate console debug messages
+templates.env.globals["app_debug"] = DEBUG
 
 app = FastAPI(title="Card Inventory")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
@@ -34,7 +39,27 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 
 @app.on_event("startup")
 def _startup() -> None:
+    setup_logging()
     init_db()
+
+
+@app.middleware("http")
+async def _access_log(request: Request, call_next):
+    # static assets would just be noise
+    if request.url.path.startswith("/static"):
+        return await call_next(request)
+    start = time.perf_counter()
+    response = await call_next(request)
+    log_http(
+        direction="local",
+        method=request.method,
+        url=str(request.url),
+        path=request.url.path,
+        params=dict(request.query_params),
+        status=response.status_code,
+        duration_ms=(time.perf_counter() - start) * 1000,
+    )
+    return response
 
 
 def _load_buylist(db: Session) -> list[BuylistItem]:

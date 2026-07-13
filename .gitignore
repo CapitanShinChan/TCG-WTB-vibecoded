@@ -9,6 +9,9 @@ venv/
 *.db
 inventory.db
 
+# Logs
+logs/
+
 # Scratch / temp
 scratch_*.py
 server.log

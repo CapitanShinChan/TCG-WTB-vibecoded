@@ -26,6 +26,7 @@
     e.preventDefault();
     const productId = link.dataset.productId;
     const foiling = link.dataset.foiling || "";
+    if (window.dbg) dbg("fetch sales", { productId, foiling });
     titleEl.textContent = link.dataset.card || "Recent sales";
     bodyEl.innerHTML = "<p class='status'>Loading sales…</p>";
     modal.classList.remove("hidden");

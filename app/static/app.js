@@ -24,10 +24,12 @@ form.addEventListener("submit", async (e) => {
   if (!q) return;
   resultsEl.innerHTML = "";
   setStatus("Searching…");
+  dbg("search", { game, q });
   try {
     const r = await fetch(`/api/search?game=${encodeURIComponent(game)}&q=${encodeURIComponent(q)}`);
     if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
     const { results } = await r.json();
+    dbg("search results", results.length);
     setStatus(results.length ? `${results.length} result(s)` : "No cards found.");
     renderResults(results);
   } catch (err) {
@@ -53,6 +55,7 @@ function renderResults(results) {
 
 async function openPrintings(card) {
   const game = gameSel.value;
+  dbg("fetch printings", card.identifier);
   modalTitle.textContent = card.name;
   printingsEl.innerHTML = "<p class='status'>Loading printings…</p>";
   modal.classList.remove("hidden");
@@ -156,6 +159,7 @@ async function addToBuylist(card, p, quantity) {
   if (p.currency) fd.append("currency", p.currency);
   if (p.price_source_id) fd.append("tcgplayer_product_id", p.price_source_id);
   if (p.price_source_url) fd.append("tcgplayer_url", p.price_source_url);
+  dbg("add to buylist", { card: card.name, printing: p.identifier, quantity });
   const r = await fetch("/buylist/add", { method: "POST", body: fd });
   if (!r.ok) throw new Error(r.statusText);
   await refreshBuylist();
@@ -190,6 +194,7 @@ if (buylistContainer) {
     const formEl = e.target;
     if (!(formEl instanceof HTMLFormElement)) return;
     e.preventDefault();
+    dbg("buylist action", formEl.getAttribute("action"));
     try {
       await fetch(formEl.action, { method: "POST", body: new FormData(formEl) });
     } finally {

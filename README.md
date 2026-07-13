@@ -63,6 +63,20 @@ app/
 Adding a game later: implement a `GameProvider` and register it in
 `providers/registry.py`.
 
+## Logging & debug
+
+Every HTTP request (incoming to the app, and outgoing to FaBrary / TCGplayer /
+Cognito) is logged to two files under `logs/`:
+
+- `access.log` — one compact human-readable line per request.
+- `http.jsonl` — one ECS-schema JSON object per line, for ingestion into a log
+  aggregator (Loki, Elastic, Splunk, Datadog).
+
+The frontend also prints `[card-inv]` debug messages to the browser console.
+Both the console messages and the debug flag are controlled by the `APP_DEBUG`
+env var (default on); set `APP_DEBUG=0` in production to silence the console
+(file logs still write). `APP_LOG_DIR` overrides the log directory.
+
 ## Notes
 
 FaBrary's API is behind AWS AppSync (IAM auth via a Cognito identity pool) and

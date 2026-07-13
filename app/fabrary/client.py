@@ -12,14 +12,16 @@ from __future__ import annotations
 import datetime as dt
 import json
 import threading
+import time
 from dataclasses import dataclass
 
 import boto3
 import botocore
-import requests
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
 from botocore.credentials import Credentials
+
+from ..logging_setup import log_http, logged_request
 
 REGION = "us-east-2"
 IDENTITY_POOL_ID = "us-east-2:e50f3ed7-32ed-4b22-a05e-10b3e7e03fe0"
@@ -103,6 +105,28 @@ class FabraryClient:
             region_name=REGION,
             config=botocore.config.Config(signature_version=botocore.UNSIGNED),
         )
+        # log the underlying Cognito HTTP calls (GetId, GetCredentialsForIdentity)
+        events = self._cognito.meta.events
+        events.register("before-call.cognito-identity", self._cognito_before)
+        events.register("after-call.cognito-identity", self._cognito_after)
+
+    # -- cognito http logging ----------------------------------------------
+
+    def _cognito_before(self, params, model, context, **kwargs):
+        context["_cardinv_t0"] = time.perf_counter()
+
+    def _cognito_after(self, http_response, parsed, model, context, **kwargs):
+        t0 = context.get("_cardinv_t0", time.perf_counter())
+        log_http(
+            direction="outgoing",
+            service="cognito",
+            method="POST",
+            url=self._cognito.meta.endpoint_url,
+            path=model.name,
+            params={"op": model.name},
+            status=getattr(http_response, "status_code", None),
+            duration_ms=(time.perf_counter() - t0) * 1000,
+        )
 
     # -- credentials --------------------------------------------------------
 
@@ -128,14 +152,22 @@ class FabraryClient:
 
     # -- low-level graphql --------------------------------------------------
 
-    def _graphql(self, query: str, variables: dict) -> dict:
+    def _graphql(self, query: str, variables: dict, op: str) -> dict:
         creds = self._get_credentials()
         body = json.dumps({"query": query, "variables": variables})
         headers = {"Content-Type": "application/json; charset=UTF-8", **_SIGNED_EXTRA}
         req = AWSRequest(method="POST", url=APPSYNC_URL, data=body, headers=headers)
         SigV4Auth(creds, "appsync", REGION).add_auth(req)
         send_headers = {**dict(req.headers), **_UNSIGNED_EXTRA}
-        resp = requests.post(APPSYNC_URL, data=body, headers=send_headers, timeout=20)
+        resp = logged_request(
+            "POST",
+            APPSYNC_URL,
+            service="fabrary",
+            params_log={"op": op, **variables},
+            data=body,
+            headers=send_headers,
+            timeout=20,
+        )
         if resp.status_code != 200:
             raise FabraryError(f"AppSync HTTP {resp.status_code}: {resp.text[:300]}")
         payload = resp.json()
@@ -148,12 +180,14 @@ class FabraryClient:
     def search_cards(self, name: str) -> list[dict]:
         """Search cards by name. Returns MinimalCard dicts."""
         text = f"name:{name.strip()}"
-        data = self._graphql(_SEARCH_CARDS, {"text": text})
+        data = self._graphql(_SEARCH_CARDS, {"text": text}, op="searchCards")
         return data.get("searchCards") or []
 
     def get_card(self, card_identifier: str) -> dict | None:
         """Full card with every printing (image + tcgplayer price ref)."""
-        data = self._graphql(_GET_CARD, {"cardIdentifier": card_identifier})
+        data = self._graphql(
+            _GET_CARD, {"cardIdentifier": card_identifier}, op="getCard"
+        )
         return data.get("getCard")
 
 

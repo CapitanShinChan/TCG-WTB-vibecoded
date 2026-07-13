@@ -28,6 +28,7 @@ async function runPreview() {
   const text = textEl.value.trim();
   if (!text) return;
   statusEl.textContent = "Resolving… (looks up each card on the provider)";
+  if (window.dbg) dbg("import preview", { game: gameSel.value, lines: text.split("\n").length });
   previewBtn.disabled = true;
   commitResult.textContent = "";
   try {
@@ -201,6 +202,7 @@ async function commitMatched(btn) {
   }
   btn.disabled = true;
   commitResult.textContent = "Adding…";
+  if (window.dbg) dbg("import commit", { items: items.length });
   try {
     const r = await fetch("/api/import/commit", {
       method: "POST",

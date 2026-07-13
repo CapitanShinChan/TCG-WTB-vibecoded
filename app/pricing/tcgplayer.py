@@ -18,7 +18,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-import requests
+from ..logging_setup import logged_request
 
 INFINITE_BASE = "https://infinite-api.tcgplayer.com"
 _HEADERS = {
@@ -70,8 +70,14 @@ def fetch_price_history(product_id: str | int, range_: str = "quarter") -> dict:
         **_HEADERS,
         "X-PageRequest-ID": f"card-inventory:www.tcgplayer.com/product/{product_id}",
     }
-    resp = requests.get(
-        url, params={"range": range_}, headers=headers, timeout=20
+    resp = logged_request(
+        "GET",
+        url,
+        service="tcgplayer",
+        params_log={"product": product_id, "range": range_},
+        params={"range": range_},
+        headers=headers,
+        timeout=20,
     )
     if resp.status_code != 200:
         raise TCGPlayerError(f"HTTP {resp.status_code}: {resp.text[:200]}")
