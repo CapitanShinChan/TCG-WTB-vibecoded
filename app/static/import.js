@@ -32,14 +32,19 @@ async function runPreview() {
   previewBtn.disabled = true;
   commitResult.textContent = "";
   try {
-    const r = await fetch("/api/import/preview", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ game: gameSel.value, text }),
-    });
-    if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
-    lines = (await r.json()).lines;
-    renderPreview();
+    await window.streamProgress(
+      "/api/import/preview-stream",
+      { game: gameSel.value, text },
+      {
+        onResult: (res) => {
+          lines = res.lines;
+          renderPreview();
+        },
+        onError: (msg) => {
+          statusEl.textContent = "Error: " + msg;
+        },
+      }
+    );
   } catch (err) {
     statusEl.textContent = "Error: " + err.message;
   } finally {

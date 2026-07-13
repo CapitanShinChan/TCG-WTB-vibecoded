@@ -175,12 +175,10 @@ def _printing_payload(p: Printing) -> dict:
     }
 
 
-def resolve_list(
-    parsed_lines: list[ParsedLine], provider: GameProvider
-) -> list[ResolvedLine]:
-    """Resolve each parsed line against the provider. Caches per-name lookups."""
-    # name (lower) -> (CardResult | None, list[Printing])
-    cache: dict[str, tuple] = {}
+def resolve_iter(parsed_lines, provider: GameProvider):
+    """Yield a ResolvedLine per parsed line. Caches per-name lookups so repeated
+    cards aren't refetched. Used both for bulk resolution and progress streaming."""
+    cache: dict[str, tuple] = {}  # name(lower) -> (CardResult | None, [Printing])
 
     def lookup(name: str):
         key = name.lower()
@@ -193,47 +191,44 @@ def resolve_list(
             cache[key] = (exact, printings)
         return cache[key]
 
-    resolved = []
     for pl in parsed_lines:
         if pl.error:
-            resolved.append(
-                ResolvedLine(
-                    pl.raw, pl.quantity, pl.name, pl.foiling, pl.extended_art,
-                    status="parse_error", message=pl.error,
-                )
+            yield ResolvedLine(
+                pl.raw, pl.quantity, pl.name, pl.foiling, pl.extended_art,
+                status="parse_error", message=pl.error,
             )
             continue
 
         card, printings = lookup(pl.name)
         if not card:
-            resolved.append(
-                ResolvedLine(
-                    pl.raw, pl.quantity, pl.name, pl.foiling, pl.extended_art,
-                    status="not_found", message="No card with that exact name",
-                )
+            yield ResolvedLine(
+                pl.raw, pl.quantity, pl.name, pl.foiling, pl.extended_art,
+                status="not_found", message="No card with that exact name",
             )
             continue
 
         match = _match_printing(printings, pl.foiling, pl.extended_art)
         if not match:
             want = _describe(pl.foiling, pl.extended_art)
-            resolved.append(
-                ResolvedLine(
-                    pl.raw, pl.quantity, pl.name, pl.foiling, pl.extended_art,
-                    status="no_printing", card_identifier=card.identifier,
-                    card_name=card.name, message=f"No {want} printing found",
-                )
+            yield ResolvedLine(
+                pl.raw, pl.quantity, pl.name, pl.foiling, pl.extended_art,
+                status="no_printing", card_identifier=card.identifier,
+                card_name=card.name, message=f"No {want} printing found",
             )
             continue
 
-        resolved.append(
-            ResolvedLine(
-                pl.raw, pl.quantity, pl.name, pl.foiling, pl.extended_art,
-                status="matched", card_identifier=card.identifier,
-                card_name=card.name, printing=_printing_payload(match),
-            )
+        yield ResolvedLine(
+            pl.raw, pl.quantity, pl.name, pl.foiling, pl.extended_art,
+            status="matched", card_identifier=card.identifier,
+            card_name=card.name, printing=_printing_payload(match),
         )
-    return resolved
+
+
+def resolve_list(
+    parsed_lines: list[ParsedLine], provider: GameProvider
+) -> list[ResolvedLine]:
+    """Resolve each parsed line against the provider. Caches per-name lookups."""
+    return list(resolve_iter(parsed_lines, provider))
 
 
 def _describe(foiling: str | None, ea: bool) -> str:

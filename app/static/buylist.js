@@ -79,6 +79,88 @@
   }
 })();
 
+// --- progress bar over an SSE stream --------------------------------------
+// Shared helper (exposed on window so import.js can use it too). POSTs a JSON
+// body and reads a text/event-stream response, updating the top progress bar
+// on each {type:"progress"} event. Resolves with the {type:"result"} payload.
+(function () {
+  const bar = document.getElementById("progress");
+  const fill = document.getElementById("progress-fill");
+  const label = document.getElementById("progress-label");
+
+  function show(text) {
+    if (!bar) return;
+    fill.style.width = "0%";
+    label.textContent = text || "";
+    bar.classList.remove("hidden");
+  }
+  function update(done, total) {
+    if (!bar) return;
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    fill.style.width = pct + "%";
+    label.textContent = `${done}/${total}`;
+  }
+  function hide() {
+    if (bar) bar.classList.add("hidden");
+  }
+
+  window.streamProgress = async function (url, body, opts = {}) {
+    show("Starting…");
+    let result = null;
+    try {
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body || {}),
+      });
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let sep;
+        while ((sep = buf.indexOf("\n\n")) >= 0) {
+          const frame = buf.slice(0, sep);
+          buf = buf.slice(sep + 2);
+          const dataLine = frame.split("\n").find((l) => l.startsWith("data:"));
+          if (!dataLine) continue;
+          const evt = JSON.parse(dataLine.slice(5).trim());
+          if (evt.type === "progress") {
+            update(evt.done, evt.total);
+            opts.onProgress && opts.onProgress(evt);
+          } else if (evt.type === "result") {
+            result = evt;
+          } else if (evt.type === "error") {
+            opts.onError && opts.onError(evt.message);
+          }
+        }
+      }
+    } finally {
+      hide();
+    }
+    if (result && opts.onResult) opts.onResult(result);
+    return result;
+  };
+})();
+
+// Refresh-all-prices with a progress bar (works on /buylist and the inline
+// buylist). Intercepts the form submit and streams; reloads when done.
+document.addEventListener("submit", (e) => {
+  const form =
+    e.target instanceof HTMLFormElement &&
+    e.target.getAttribute("action") === "/buylist/refresh-all"
+      ? e.target
+      : null;
+  if (!form) return;
+  e.preventDefault();
+  if (window.dbg) dbg("refresh all prices (streaming)");
+  window.streamProgress("/buylist/refresh-all-stream", {}, {
+    onResult: () => location.reload(),
+  });
+});
+
 // --- sortable buylist table -----------------------------------------------
 // Delegated on document so it works on both /buylist and the inline buylist,
 // and survives the inline table being re-rendered after add/qty/remove.

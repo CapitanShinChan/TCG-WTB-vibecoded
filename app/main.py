@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 import time
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from fastapi.responses import (
     JSONResponse,
     PlainTextResponse,
     RedirectResponse,
+    StreamingResponse,
 )
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -20,9 +22,9 @@ from sqlalchemy.orm import Session
 
 from . import export
 from .config import DEBUG
-from .db import get_session, init_db
+from .db import SessionLocal, get_session, init_db
 from .fabrary.client import FabraryError
-from .importer import parse_list, resolve_list
+from .importer import parse_list, resolve_iter, resolve_list
 from .logging_setup import log_http, setup_logging
 from .models import BuylistItem
 from .pricing.tcgplayer import (
@@ -68,6 +70,14 @@ async def _access_log(request: Request, call_next):
         duration_ms=(time.perf_counter() - start) * 1000,
     )
     return response
+
+
+# Server-Sent Events helpers (progress streaming)
+_SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+
+
+def _sse(obj: dict) -> str:
+    return f"data: {json.dumps(obj)}\n\n"
 
 
 def _load_buylist(db: Session) -> list[BuylistItem]:
@@ -251,6 +261,32 @@ def api_import_preview(req: ImportPreviewReq):
     except FabraryError as e:
         raise HTTPException(502, f"Card provider error: {e}")
     return {"lines": [r.as_dict() for r in resolved]}
+
+
+@app.post("/api/import/preview-stream")
+def api_import_preview_stream(req: ImportPreviewReq):
+    """Same as /api/import/preview but streams per-line progress via SSE."""
+    provider = registry.get_provider(req.game)
+    if not provider:
+        raise HTTPException(404, f"Unknown game: {req.game}")
+    parsed = parse_list(req.text)
+
+    def gen():
+        total = len(parsed)
+        yield _sse({"type": "progress", "done": 0, "total": total})
+        results = []
+        try:
+            for i, resolved in enumerate(resolve_iter(parsed, provider)):
+                results.append(resolved.as_dict())
+                yield _sse({"type": "progress", "done": i + 1, "total": total})
+        except FabraryError as e:
+            yield _sse({"type": "error", "message": f"Card provider error: {e}"})
+            return
+        yield _sse({"type": "result", "lines": results})
+
+    return StreamingResponse(
+        gen(), media_type="text/event-stream", headers=_SSE_HEADERS
+    )
 
 
 @app.post("/api/import/commit")
@@ -446,3 +482,32 @@ def buylist_refresh_all(db: Session = Depends(get_session)):
             continue  # skip items that fail; keep going
     db.commit()
     return RedirectResponse("/buylist", status_code=303)
+
+
+@app.post("/buylist/refresh-all-stream")
+def buylist_refresh_all_stream():
+    """Refresh every priced item, streaming per-item progress via SSE."""
+    def gen():
+        db = SessionLocal()
+        try:
+            items = db.scalars(
+                select(BuylistItem).where(
+                    BuylistItem.tcgplayer_product_id.is_not(None)
+                )
+            ).all()
+            total = len(items)
+            yield _sse({"type": "progress", "done": 0, "total": total})
+            for i, item in enumerate(items):
+                try:
+                    _refresh_price(item)
+                    db.commit()
+                except TCGPlayerError:
+                    db.rollback()
+                yield _sse({"type": "progress", "done": i + 1, "total": total})
+            yield _sse({"type": "result", "refreshed": total})
+        finally:
+            db.close()
+
+    return StreamingResponse(
+        gen(), media_type="text/event-stream", headers=_SSE_HEADERS
+    )

@@ -193,6 +193,8 @@ if (buylistContainer) {
   buylistContainer.addEventListener("submit", async (e) => {
     const formEl = e.target;
     if (!(formEl instanceof HTMLFormElement)) return;
+    // refresh-all is handled with a progress bar in buylist.js — let it bubble
+    if (formEl.getAttribute("action") === "/buylist/refresh-all") return;
     e.preventDefault();
     dbg("buylist action", formEl.getAttribute("action"));
     try {

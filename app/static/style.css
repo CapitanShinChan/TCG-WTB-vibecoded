@@ -172,6 +172,33 @@ table.buylist { width: 100%; border-collapse: collapse; }
 /* generic hidden helper */
 .hidden { display: none; }
 
+/* top progress bar (SSE fetch progress) */
+.progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 22px;
+  background: var(--panel-2);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+}
+.progress.hidden { display: none; }
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent-2);
+  transition: width 0.15s ease;
+}
+.progress-label {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.72rem;
+  color: var(--text);
+}
+
 /* quantity prompt overlay */
 .qty-overlay {
   position: fixed;
