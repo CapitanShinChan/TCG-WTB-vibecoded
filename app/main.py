@@ -16,7 +16,13 @@ from .db import get_session, init_db
 from .fabrary.client import FabraryError
 from .importer import parse_list, resolve_list
 from .models import BuylistItem
-from .pricing.tcgplayer import CURRENCY, TCGPlayerError, get_pricing, get_sales
+from .pricing.tcgplayer import (
+    CURRENCY,
+    TCGPlayerError,
+    get_pricing,
+    get_sales,
+    variant_for_foiling,
+)
 from .providers import registry
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -278,7 +284,9 @@ def _refresh_price(item: BuylistItem) -> bool:
     """Fetch TCGplayer pricing for one item and update it. Returns success."""
     if not item.tcgplayer_product_id:
         return False
-    result = get_pricing(item.tcgplayer_product_id)
+    result = get_pricing(
+        item.tcgplayer_product_id, variant_for_foiling(item.foiling)
+    )
     item.price = result.current_price
     item.suggested_price = result.suggested_price
     item.price_sample_size = result.sample_size
@@ -302,10 +310,11 @@ def buylist_refresh_price(
 
 
 @app.get("/api/sales/{product_id}")
-def api_sales(product_id: str):
-    """Recent sales for a TCGplayer product (feeds the suggested-price modal)."""
+def api_sales(product_id: str, foiling: str | None = None):
+    """Recent sales for a TCGplayer product (feeds the suggested-price modal).
+    `foiling` selects the same SKU/variant used for the suggested price."""
     try:
-        sales = get_sales(product_id)
+        sales = get_sales(product_id, variant_for_foiling(foiling))
     except TCGPlayerError as e:
         raise HTTPException(502, f"TCGplayer error: {e}")
     return {"currency": CURRENCY, "sales": [s.__dict__ for s in sales]}

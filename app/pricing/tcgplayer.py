@@ -31,6 +31,14 @@ _HEADERS = {
 }
 CURRENCY = "USD"  # TCGplayer prices are USD
 
+# Suggested-price tuning: only the most-recent N individual sales are used to
+# compute the suggested price. A full quarter of history for a freshly-released
+# set includes early post-release sales at much higher prices, which drags the
+# average well above the current market. Capping to the most recent sales keeps
+# the suggested price close to what the card is selling for now. Count-based
+# (not time-based) so it adapts to volume. Tune here if needed.
+RECENT_SALES_CAP = 100
+
 
 class TCGPlayerError(RuntimeError):
     pass
@@ -69,11 +77,20 @@ def fetch_price_history(product_id: str | int, range_: str = "quarter") -> dict:
     return resp.json()
 
 
-def _select_sku(results: list[dict]) -> dict | None:
-    for sku in results:
-        if sku.get("condition") == "Near Mint" and sku.get("language") == "English":
-            return sku
-    return results[0] if results else None
+# FaBrary foiling value -> TCGplayer SKU "variant" label. A single TCGplayer
+# productId can expose several variants (Normal, Cold Foil, ...) as separate
+# SKUs, so we must pick the one matching the printing we're pricing.
+_FOILING_TO_VARIANT = {
+    "Cold": "Cold Foil",
+    "Rainbow": "Rainbow Foil",
+    "Marvel": "Marvel",
+}
+
+
+def variant_for_foiling(foiling: str | None) -> str:
+    if not foiling:
+        return "Normal"
+    return _FOILING_TO_VARIANT.get(foiling, foiling)
 
 
 def _to_float(v) -> float:
@@ -81,6 +98,22 @@ def _to_float(v) -> float:
         return float(v)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _select_sku(results: list[dict], variant: str | None = None) -> dict | None:
+    if not results:
+        return None
+    # 1. exact match: requested variant + Near Mint + English
+    if variant:
+        for sku in results:
+            if (
+                sku.get("variant") == variant
+                and sku.get("condition") == "Near Mint"
+                and sku.get("language") == "English"
+            ):
+                return sku
+    # 2. fallback: the highest-volume SKU (usually the real / base printing)
+    return max(results, key=lambda s: _to_float(s.get("totalQuantitySold")))
 
 
 def _weighted_sale_prices(sku: dict) -> list[float]:
@@ -121,11 +154,12 @@ def _trimmed_mean(prices: list[float]) -> float | None:
     return sum(prices) / len(prices)
 
 
-def compute_pricing(data: dict) -> PricingResult:
-    sku = _select_sku(data.get("result") or [])
+def compute_pricing(data: dict, variant: str | None = None) -> PricingResult:
+    sku = _select_sku(data.get("result") or [], variant)
     if not sku:
         return PricingResult(None, None, 0)
-    prices = _weighted_sale_prices(sku)
+    # _weighted_sale_prices is newest-first; keep only the most recent sales
+    prices = _weighted_sale_prices(sku)[:RECENT_SALES_CAP]
     suggested = _trimmed_mean(prices)
     return PricingResult(
         current_price=_current_market_price(sku),
@@ -134,14 +168,16 @@ def compute_pricing(data: dict) -> PricingResult:
     )
 
 
-def get_pricing(product_id: str | int, range_: str = "quarter") -> PricingResult:
-    return compute_pricing(fetch_price_history(product_id, range_))
+def get_pricing(
+    product_id: str | int, variant: str | None = None, range_: str = "quarter"
+) -> PricingResult:
+    return compute_pricing(fetch_price_history(product_id, range_), variant)
 
 
-def extract_sales(data: dict) -> list[SalePoint]:
+def extract_sales(data: dict, variant: str | None = None) -> list[SalePoint]:
     """Sale buckets for the selected SKU, newest first (same SKU the suggested
     price is computed from)."""
-    sku = _select_sku(data.get("result") or [])
+    sku = _select_sku(data.get("result") or [], variant)
     sales: list[SalePoint] = []
     if not sku:
         return sales
@@ -166,5 +202,7 @@ def extract_sales(data: dict) -> list[SalePoint]:
     return sales
 
 
-def get_sales(product_id: str | int, range_: str = "quarter") -> list[SalePoint]:
-    return extract_sales(fetch_price_history(product_id, range_))
+def get_sales(
+    product_id: str | int, variant: str | None = None, range_: str = "quarter"
+) -> list[SalePoint]:
+    return extract_sales(fetch_price_history(product_id, range_), variant)

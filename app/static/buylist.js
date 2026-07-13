@@ -25,11 +25,15 @@
     if (!link) return;
     e.preventDefault();
     const productId = link.dataset.productId;
+    const foiling = link.dataset.foiling || "";
     titleEl.textContent = link.dataset.card || "Recent sales";
     bodyEl.innerHTML = "<p class='status'>Loading sales…</p>";
     modal.classList.remove("hidden");
     try {
-      const r = await fetch(`/api/sales/${encodeURIComponent(productId)}`);
+      const url =
+        `/api/sales/${encodeURIComponent(productId)}` +
+        (foiling ? `?foiling=${encodeURIComponent(foiling)}` : "");
+      const r = await fetch(url);
       if (!r.ok) throw new Error(r.statusText);
       const { currency, sales } = await r.json();
       renderSales(sales, currency);

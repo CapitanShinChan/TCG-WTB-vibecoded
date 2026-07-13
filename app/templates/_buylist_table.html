@@ -54,6 +54,7 @@
         {% if it.suggested_price is not none %}
           <button type="button" class="suggested-price-link"
                   data-product-id="{{ it.tcgplayer_product_id }}"
+                  data-foiling="{{ it.foiling or '' }}"
                   data-card="{{ it.card_name }} — {{ it.printing_label }}"
                   title="Show recent sales">
             <strong>{{ "%.2f"|format(it.suggested_price) }} {{ it.currency or "" }}</strong>
