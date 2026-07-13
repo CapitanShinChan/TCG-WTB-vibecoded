@@ -206,6 +206,7 @@ button.secondary { background: var(--panel-2); color: var(--text); border: 1px s
 .preview-table th { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
 .preview-table .thumb img.mini { width: 34px; border-radius: 3px; display: block; }
 .preview-table .qty-input { width: 3.2rem; padding: 0.2rem 0.3rem; }
+.preview-table .recheck-input { width: 100%; min-width: 12rem; padding: 0.2rem 0.4rem; }
 .preview-table tr.st-not_found td,
 .preview-table tr.st-no_printing td,
 .preview-table tr.st-parse_error td { color: var(--muted); }

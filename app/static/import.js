@@ -73,11 +73,15 @@ function renderRows() {
     const qtyCell = isMatched(l)
       ? `<input type="number" min="1" class="qty-input" data-idx="${idx}" value="${l.quantity}">`
       : l.quantity;
+    // failed lines get an editable input so they can be corrected and rechecked
+    const inputCell = isMatched(l)
+      ? escapeHtml(l.raw.trim())
+      : `<input type="text" class="recheck-input" data-idx="${idx}" value="${escapeHtml(l.raw.trim())}">`;
 
     tr.innerHTML = `
       <td class="thumb">${img}</td>
       <td class="qty-cell">${qtyCell}</td>
-      <td>${escapeHtml(l.raw.trim())}</td>
+      <td>${inputCell}</td>
       <td>${printingCell}</td>
       <td><span class="status-badge ${l.status}">${STATUS_LABEL[l.status] || l.status}</span>
           ${l.message ? `<div class="sub">${escapeHtml(l.message)}</div>` : ""}</td>
@@ -107,6 +111,9 @@ function renderActions(matchedCount, failedCount) {
   const row = document.createElement("div");
   row.className = "action-row";
 
+  const recheck = button("Recheck failed lines", "secondary");
+  recheck.addEventListener("click", () => recheckFailed(recheck));
+
   const remove = button("Remove unfetchable lines & edit", "secondary");
   remove.addEventListener("click", removeUnfetchable);
 
@@ -114,6 +121,7 @@ function renderActions(matchedCount, failedCount) {
   addAnyway.disabled = matchedCount === 0;
   addAnyway.addEventListener("click", () => commitMatched(addAnyway));
 
+  row.appendChild(recheck);
   row.appendChild(remove);
   row.appendChild(addAnyway);
   actionsEl.appendChild(row);
@@ -129,6 +137,49 @@ function removeUnfetchable() {
   statusEl.textContent =
     "Removed unfetchable lines. Review the list and preview again.";
   textEl.focus();
+}
+
+// Re-resolve only the failed lines (using their possibly-edited input text) and
+// merge the results back in place. Matched lines are left as-is (not refetched).
+async function recheckFailed(btn) {
+  const pairs = []; // { idx, text } for non-blank failed lines
+  const removeIdx = new Set(); // failed lines the user blanked out
+  lines.forEach((l, i) => {
+    if (isMatched(l)) return;
+    const inp = document.querySelector(`.recheck-input[data-idx="${i}"]`);
+    const text = (inp ? inp.value : l.raw).trim();
+    if (!text) removeIdx.add(i);
+    else pairs.push({ idx: i, text });
+  });
+  if (!pairs.length && !removeIdx.size) return;
+
+  btn.disabled = true;
+  commitResult.textContent = "";
+  statusEl.textContent = "Rechecking failed lines…";
+  try {
+    let results = [];
+    if (pairs.length) {
+      const r = await fetch("/api/import/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          game: gameSel.value,
+          text: pairs.map((p) => p.text).join("\n"),
+        }),
+      });
+      if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+      results = (await r.json()).lines;
+    }
+    // results are in the same order as pairs; replace originals in place
+    const n = Math.min(results.length, pairs.length);
+    for (let k = 0; k < n; k++) lines[pairs[k].idx] = results[k];
+    // drop lines the user cleared out
+    if (removeIdx.size) lines = lines.filter((_, i) => !removeIdx.has(i));
+    renderPreview();
+  } catch (err) {
+    statusEl.textContent = "Error: " + err.message;
+    btn.disabled = false;
+  }
 }
 
 async function commitMatched(btn) {
