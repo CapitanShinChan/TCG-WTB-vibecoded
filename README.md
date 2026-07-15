@@ -67,6 +67,13 @@ app/
 Adding a game later: implement a `GameProvider` and register it in
 `providers/registry.py`.
 
+## Authentication
+
+The whole app is behind single-user HTTP Basic auth (`app/auth.py`). The
+password is stored as a salted PBKDF2-SHA256 hash, not plaintext. Override in
+production with env vars: `AUTH_USERNAME`, `AUTH_SALT`, `AUTH_PASSWORD_HASH`.
+Basic auth sends credentials every request, so serve only over HTTPS.
+
 ## Logging & debug
 
 Every HTTP request (incoming to the app, and outgoing to FaBrary / TCGplayer /

@@ -12,6 +12,7 @@ from fastapi.responses import (
     JSONResponse,
     PlainTextResponse,
     RedirectResponse,
+    Response,
     StreamingResponse,
 )
 from fastapi.staticfiles import StaticFiles
@@ -21,6 +22,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import export
+from .auth import is_authorized
 from .config import DEBUG
 from .db import SessionLocal, get_session, init_db
 from .fabrary.client import FabraryError
@@ -51,6 +53,16 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 def _startup() -> None:
     setup_logging()
     init_db()
+
+
+@app.middleware("http")
+async def _require_auth(request: Request, call_next):
+    if not is_authorized(request.headers.get("Authorization")):
+        return Response(
+            status_code=401,
+            headers={"WWW-Authenticate": 'Basic realm="Card Inventory"'},
+        )
+    return await call_next(request)
 
 
 @app.middleware("http")
