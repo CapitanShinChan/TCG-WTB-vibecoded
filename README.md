@@ -70,9 +70,21 @@ Adding a game later: implement a `GameProvider` and register it in
 ## Authentication
 
 The whole app is behind single-user HTTP Basic auth (`app/auth.py`). The
-password is stored as a salted PBKDF2-SHA256 hash, not plaintext. Override in
-production with env vars: `AUTH_USERNAME`, `AUTH_SALT`, `AUTH_PASSWORD_HASH`.
+password is a salted PBKDF2-SHA256 hash, never plaintext. Credentials load with
+this precedence:
+
+1. **Production** — env vars `AUTH_USERNAME`, `AUTH_SALT`, `AUTH_PASSWORD_HASH`.
+2. **Local testing** — a git-ignored `auth_local.json` at the project root
+   (copy `auth_local.example.json`).
+3. Neither configured → auth fails closed.
+
 Basic auth sends credentials every request, so serve only over HTTPS.
+
+**Brute-force protection** (in-memory, per source IP): every failed attempt is
+delayed; after 5 failures an IP is locked out with exponential backoff (HTTP
+429 + `Retry-After`, capped at 5 min); a success or 15 min idle resets it.
+Requests with no credentials aren't penalised (browsers probe once before
+prompting).
 
 ## Logging & debug
 

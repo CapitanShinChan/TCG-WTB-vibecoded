@@ -1,0 +1,5 @@
+{
+  "username": "your-username",
+  "salt": "<hex salt>",
+  "password_hash": "<pbkdf2_hmac sha256, 200000 iterations, hex>"
+}

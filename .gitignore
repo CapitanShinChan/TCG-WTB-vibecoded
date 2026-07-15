@@ -12,6 +12,9 @@ inventory.db
 # Logs
 logs/
 
+# Local auth credentials (never commit real credentials)
+auth_local.json
+
 # Scratch / temp
 scratch_*.py
 server.log

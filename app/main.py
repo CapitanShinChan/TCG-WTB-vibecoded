@@ -1,6 +1,7 @@
 """FastAPI app: game selector, card search, and buylist."""
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 import json
 import time
@@ -22,7 +23,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import export
-from .auth import is_authorized
+from .auth import (
+    FAILURE_DELAY,
+    is_authorized,
+    record_failure,
+    record_success,
+    seconds_blocked,
+)
 from .config import DEBUG
 from .db import SessionLocal, get_session, init_db
 from .fabrary.client import FabraryError
@@ -55,14 +62,39 @@ def _startup() -> None:
     init_db()
 
 
+_AUTH_CHALLENGE = {"WWW-Authenticate": 'Basic realm="Card Inventory"'}
+
+
+def _client_ip(request: Request) -> str:
+    # behind a proxy (e.g. Azure App Service) the real IP is in X-Forwarded-For
+    xff = request.headers.get("X-Forwarded-For")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 @app.middleware("http")
 async def _require_auth(request: Request, call_next):
-    if not is_authorized(request.headers.get("Authorization")):
+    ip = _client_ip(request)
+
+    blocked = seconds_blocked(ip)
+    if blocked > 0:  # locked out — reject without even checking credentials
         return Response(
-            status_code=401,
-            headers={"WWW-Authenticate": 'Basic realm="Card Inventory"'},
+            status_code=429,
+            headers={**_AUTH_CHALLENGE, "Retry-After": str(int(blocked) + 1)},
         )
-    return await call_next(request)
+
+    auth_header = request.headers.get("Authorization")
+    if is_authorized(auth_header):
+        record_success(ip)
+        return await call_next(request)
+
+    # Only penalise an actual wrong attempt (credentials were presented). A
+    # browser's first credential-less request just gets the challenge.
+    if auth_header:
+        record_failure(ip)
+        await asyncio.sleep(FAILURE_DELAY)
+    return Response(status_code=401, headers=_AUTH_CHALLENGE)
 
 
 @app.middleware("http")
