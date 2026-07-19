@@ -116,6 +116,23 @@ async def _access_log(request: Request, call_next):
     return response
 
 
+# Defined last so it is the OUTERMOST middleware: it must post-process every
+# response, including the 401/429 that the auth middleware short-circuits.
+@app.middleware("http")
+async def _security_headers(request: Request, call_next):
+    response = await call_next(request)
+    # don't advertise the underlying technology
+    response.headers["Server"] = "web"
+    for leaky in ("X-Powered-By", "X-AspNet-Version", "X-Runtime"):
+        if leaky in response.headers:
+            del response.headers[leaky]
+    # hardening headers (non-identifying)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
 # Server-Sent Events helpers (progress streaming)
 _SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
 
