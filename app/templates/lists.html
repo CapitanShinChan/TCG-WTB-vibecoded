@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Lists — Card Inventory{% endblock %}
+{% block content %}
+<h1>Lists</h1>
+
+<section class="lists-panel">
+  <form method="post" action="/lists/create" class="create-list">
+    <input type="text" name="name" placeholder="New list name…" required>
+    <button type="submit">Create list</button>
+  </form>
+
+  <table class="lists-table">
+    <thead>
+      <tr><th>List</th><th>Cards</th><th></th></tr>
+    </thead>
+    <tbody>
+      <tr class="general-row">
+        <td><strong>General</strong> <span class="sub">(cards not in any list)</span></td>
+        <td>{{ general_count }}</td>
+        <td><a class="ext" href="/buylist?scope=general">View →</a></td>
+      </tr>
+      {% for l in lists %}
+      <tr>
+        <td>
+          <form method="post" action="/lists/rename" class="rename-form">
+            <input type="hidden" name="list_id" value="{{ l.id }}">
+            <input type="text" name="name" value="{{ l.name }}" required>
+            <button type="submit" class="qbtn" title="Rename">Rename</button>
+          </form>
+        </td>
+        <td>{{ counts.get(l.id, 0) }}</td>
+        <td class="actions">
+          <a class="ext" href="/buylist?scope={{ l.id }}">View →</a>
+          <button type="button" class="remove delete-list"
+                  data-list-id="{{ l.id }}"
+                  data-list-name="{{ l.name }}"
+                  data-count="{{ counts.get(l.id, 0) }}">Delete</button>
+        </td>
+      </tr>
+      {% endfor %}
+      {% if not lists %}
+      <tr><td colspan="3" class="status">No lists yet — create one above.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</section>
+
+<!-- delete prompt: choose what happens to the list's cards -->
+<div id="delete-overlay" class="qty-overlay hidden">
+  <div class="qty-box">
+    <p id="delete-label"></p>
+    <p class="hint" id="delete-hint"></p>
+    <form method="post" action="/lists/delete" id="delete-form">
+      <input type="hidden" name="list_id" id="delete-list-id">
+      <input type="hidden" name="mode" id="delete-mode" value="move">
+      <div class="qty-buttons">
+        <button type="button" id="delete-cancel" class="secondary">Cancel</button>
+        <button type="submit" id="delete-move" class="secondary">Delete list, keep cards</button>
+        <button type="submit" id="delete-all" class="remove">Delete list + cards</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/lists.js"></script>
+{% endblock %}

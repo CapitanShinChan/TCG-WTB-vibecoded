@@ -35,6 +35,14 @@
     <label>Quantity
       <input type="number" id="qty-input" min="1" value="1">
     </label>
+    <label>Add to
+      <select id="qty-list">
+        <option value="general">General buylist</option>
+        {% for l in lists | default([]) %}
+        <option value="{{ l.id }}">{{ l.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
     <div class="qty-buttons">
       <button type="button" id="qty-cancel" class="secondary">Cancel</button>
       <button type="button" id="qty-confirm">Add</button>

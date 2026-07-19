@@ -212,7 +212,11 @@ async function commitMatched(btn) {
     const r = await fetch("/api/import/commit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ game: gameSel.value, items }),
+      body: JSON.stringify({
+        game: gameSel.value,
+        items,
+        target_list: ($("#import-list") || {}).value || "general",
+      }),
     });
     if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
     const { added, updated } = await r.json();

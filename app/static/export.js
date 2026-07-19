@@ -15,6 +15,8 @@ function buildQuery() {
   const max = $("#price-max").value.trim();
   if (min !== "") p.append("price_min", min);
   if (max !== "") p.append("price_max", max);
+  const listSel = $("#export-list");
+  if (listSel) p.append("scope", listSel.value);
   return p.toString();
 }
 
@@ -35,6 +37,8 @@ async function generate() {
 }
 
 $("#generate-btn").addEventListener("click", generate);
+// regenerate immediately when the source list changes
+if ($("#export-list")) $("#export-list").addEventListener("change", generate);
 
 // copy buttons
 $$(".copy-btn").forEach((btn) => {

@@ -161,6 +161,31 @@ document.addEventListener("submit", (e) => {
   });
 });
 
+// --- list scope switcher ---------------------------------------------------
+// Delegated so it survives the inline buylist being re-rendered. On the search
+// page it refreshes the inline table; elsewhere it navigates with ?scope=.
+(function () {
+  document.addEventListener("change", (e) => {
+    const sel = e.target.closest(".buylist-scope");
+    if (!sel) return;
+    const scope = sel.value;
+    if (window.dbg) dbg("buylist scope", scope);
+    if (document.querySelector("#buylist-container") && window.refreshBuylist) {
+      window.refreshBuylist();
+    } else {
+      const url = new URL(window.location.href);
+      url.searchParams.set("scope", scope);
+      window.location = url.toString();
+    }
+  });
+})();
+
+// Current buylist scope (used when refreshing the inline table).
+window.currentBuylistScope = function () {
+  const sel = document.querySelector(".buylist-scope");
+  return sel ? sel.value : "all";
+};
+
 // --- sortable buylist table -----------------------------------------------
 // Delegated on document so it works on both /buylist and the inline buylist,
 // and survives the inline table being re-rendered after add/qty/remove.

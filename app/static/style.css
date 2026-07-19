@@ -141,7 +141,23 @@ table.buylist { width: 100%; border-collapse: collapse; }
 .qbtn { background: var(--panel-2); color: var(--text); padding: 0.1rem 0.5rem; }
 .remove { background: transparent; color: var(--accent); border: 1px solid var(--border); }
 .ext { color: var(--accent-2); font-size: 0.75rem; margin-left: 0.4rem; text-decoration: none; }
-.buylist-toolbar { display: flex; justify-content: flex-end; margin-bottom: 0.5rem; }
+.buylist-toolbar { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; margin-bottom: 0.5rem; }
+.scope-picker { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.8rem; color: var(--muted); }
+
+/* lists page */
+.lists-panel .create-list { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+.lists-panel .create-list input { flex: 1; max-width: 320px; }
+.lists-table { width: 100%; border-collapse: collapse; }
+.lists-table th, .lists-table td { padding: 0.5rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
+.lists-table th { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.lists-table .general-row { background: rgba(255,255,255,0.02); }
+.lists-table .sub { font-size: 0.75rem; color: var(--muted); }
+.rename-form { display: flex; gap: 0.4rem; align-items: center; margin: 0; }
+.rename-form input { min-width: 180px; }
+.lists-table .actions { white-space: nowrap; }
+.lists-table .actions .ext { margin-right: 0.6rem; }
+#delete-overlay .qty-buttons { flex-wrap: wrap; }
+#delete-overlay .hint { font-size: 0.8rem; color: var(--muted); margin: 0 0 0.5rem; }
 .buylist-toolbar form { margin: 0; }
 .refresh-all { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
 .buylist .actions { white-space: nowrap; }

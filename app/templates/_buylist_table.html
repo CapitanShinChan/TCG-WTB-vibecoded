@@ -1,12 +1,23 @@
-{# Reusable buylist table. Expects: items (list). Optional: empty_text (str). #}
-{% if not items %}
-  <p class="status">{{ empty_text | default("Buylist empty.") }}</p>
-{% else %}
+{# Reusable buylist table. Expects: items. Optional: empty_text, lists, scope. #}
 <div class="buylist-toolbar">
+  <label class="scope-picker">List
+    <select class="buylist-scope">
+      <option value="all" {% if scope in (None, 'all') %}selected{% endif %}>All</option>
+      <option value="general" {% if scope == 'general' %}selected{% endif %}>General (unlisted)</option>
+      {% for l in lists | default([]) %}
+      <option value="{{ l.id }}" {% if scope == l.id | string %}selected{% endif %}>{{ l.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  {% if items %}
   <form method="post" action="/buylist/refresh-all">
     <button type="submit" class="refresh-all">↻ Refresh all prices</button>
   </form>
+  {% endif %}
 </div>
+{% if not items %}
+  <p class="status">{{ empty_text | default("Buylist empty.") }}</p>
+{% else %}
 <table class="buylist">
   <thead>
     <tr>

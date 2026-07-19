@@ -42,7 +42,15 @@ Then open http://127.0.0.1:8000
   `MV` Marvel, `NF` Non Foil (standard), `EA` Extended Art. Each line is
   validated against the provider (exact name + matching printing); a preview
   shows what matched before you add the selected rows.
-- **Buylist**: view/adjust quantities, remove items, and refresh prices.
+- **Buylist**: view/adjust quantities, remove items, and refresh prices. A list
+  selector switches between **All**, **General** (cards not in any list) and
+  each named list.
+- **Lists**: group cards into named lists (e.g. one per deck) on the Lists page
+  — create empty, rename, delete. The same printing can live in several lists,
+  each with its own quantity. Deleting a list asks whether to keep its cards
+  (moved to General) or delete them too. Adding from Search, and Import, let
+  you pick the target list (default General); Export can be scoped to one list
+  (default All).
 - **Export**: filter the buylist (by set, printing/foiling, suggested-price
   range) and export either a Discord "WTB" message (grouped by set, with
   suggested prices) or a re-importable `.txt` list. Copy to clipboard or

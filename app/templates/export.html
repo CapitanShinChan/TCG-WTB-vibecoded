@@ -5,6 +5,17 @@
 
 <section class="export-filters">
   <div class="filter-group">
+    <h3>List</h3>
+    <select id="export-list">
+      <option value="all">All (everything)</option>
+      <option value="general">General (unlisted)</option>
+      {% for l in lists | default([]) %}
+      <option value="{{ l.id }}">{{ l.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="filter-group">
     <h3>Sets</h3>
     <div class="checks">
       {% for s in sets %}

@@ -7,6 +7,7 @@ venv/
 
 # App data
 *.db
+*.db.bak
 inventory.db
 
 # Logs

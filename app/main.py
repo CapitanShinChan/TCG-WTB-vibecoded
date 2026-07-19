@@ -19,7 +19,7 @@ from fastapi.responses import (
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from . import export
@@ -35,7 +35,7 @@ from .db import SessionLocal, get_session, init_db
 from .fabrary.client import FabraryError
 from .importer import parse_list, resolve_iter, resolve_list
 from .logging_setup import log_http, setup_logging
-from .models import BuylistItem
+from .models import BuylistItem, CardList
 from .pricing.tcgplayer import (
     CURRENCY,
     TCGPlayerError,
@@ -141,39 +141,178 @@ def _sse(obj: dict) -> str:
     return f"data: {json.dumps(obj)}\n\n"
 
 
-def _load_buylist(db: Session) -> list[BuylistItem]:
-    """Buylist items, most recently added first."""
-    return list(
-        db.scalars(select(BuylistItem).order_by(BuylistItem.created_at.desc())).all()
-    )
+# --- card lists ------------------------------------------------------------
+# A "scope" selects which items to show/export:
+#   "all"      -> every item (default)
+#   "general"  -> only unlisted items (list_id IS NULL)
+#   "<id>"     -> only items in that list
+SCOPE_ALL = "all"
+SCOPE_GENERAL = "general"
+
+
+def _all_lists(db: Session) -> list[CardList]:
+    return list(db.scalars(select(CardList).order_by(CardList.name)).all())
+
+
+def _target_list_id(value: str | None) -> int | None:
+    """Where a card should be *written*. General/blank -> None (unlisted)."""
+    if not value or value in (SCOPE_GENERAL, SCOPE_ALL):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _load_buylist(db: Session, scope: str | None = SCOPE_ALL) -> list[BuylistItem]:
+    """Buylist items for a scope, most recently added first."""
+    stmt = select(BuylistItem).order_by(BuylistItem.created_at.desc())
+    if scope and scope != SCOPE_ALL:
+        if scope == SCOPE_GENERAL:
+            stmt = stmt.where(BuylistItem.list_id.is_(None))
+        else:
+            try:
+                stmt = stmt.where(BuylistItem.list_id == int(scope))
+            except (TypeError, ValueError):
+                pass  # unknown scope -> treat as "all"
+    return list(db.scalars(stmt).all())
 
 
 # --- pages -----------------------------------------------------------------
 
 @app.get("/", response_class=HTMLResponse)
-def index(request: Request, db: Session = Depends(get_session)):
+def index(
+    request: Request,
+    scope: str = SCOPE_ALL,
+    db: Session = Depends(get_session),
+):
     return templates.TemplateResponse(
         request,
         "index.html",
-        {"games": registry.all_games(), "items": _load_buylist(db)},
+        {
+            "games": registry.all_games(),
+            "items": _load_buylist(db, scope),
+            "lists": _all_lists(db),
+            "scope": scope,
+        },
     )
 
 
 @app.get("/buylist", response_class=HTMLResponse)
-def buylist(request: Request, db: Session = Depends(get_session)):
+def buylist(
+    request: Request,
+    scope: str = SCOPE_ALL,
+    db: Session = Depends(get_session),
+):
     return templates.TemplateResponse(
         request,
         "buylist.html",
-        {"items": _load_buylist(db), "games": registry.all_games()},
+        {
+            "items": _load_buylist(db, scope),
+            "games": registry.all_games(),
+            "lists": _all_lists(db),
+            "scope": scope,
+        },
     )
 
 
 @app.get("/partials/buylist", response_class=HTMLResponse)
-def buylist_partial(request: Request, db: Session = Depends(get_session)):
+def buylist_partial(
+    request: Request,
+    scope: str = SCOPE_ALL,
+    db: Session = Depends(get_session),
+):
     """Just the buylist table fragment, for live refresh on the search page."""
     return templates.TemplateResponse(
-        request, "_buylist_table.html", {"items": _load_buylist(db)}
+        request,
+        "_buylist_table.html",
+        {"items": _load_buylist(db, scope), "lists": _all_lists(db), "scope": scope},
     )
+
+
+# --- list management -------------------------------------------------------
+
+@app.get("/lists", response_class=HTMLResponse)
+def lists_page(request: Request, db: Session = Depends(get_session)):
+    lists = _all_lists(db)
+    counts = {
+        lst.id: db.scalar(
+            select(func.count(BuylistItem.id)).where(BuylistItem.list_id == lst.id)
+        )
+        for lst in lists
+    }
+    general_count = db.scalar(
+        select(func.count(BuylistItem.id)).where(BuylistItem.list_id.is_(None))
+    )
+    return templates.TemplateResponse(
+        request,
+        "lists.html",
+        {"lists": lists, "counts": counts, "general_count": general_count},
+    )
+
+
+@app.post("/lists/create")
+def lists_create(name: str = Form(...), db: Session = Depends(get_session)):
+    name = name.strip()
+    if not name:
+        raise HTTPException(400, "List name required")
+    if db.scalar(select(CardList).where(CardList.name == name)):
+        raise HTTPException(409, f"A list named {name!r} already exists")
+    db.add(CardList(name=name))
+    db.commit()
+    return RedirectResponse("/lists", status_code=303)
+
+
+@app.post("/lists/rename")
+def lists_rename(
+    list_id: int = Form(...), name: str = Form(...), db: Session = Depends(get_session)
+):
+    name = name.strip()
+    if not name:
+        raise HTTPException(400, "List name required")
+    lst = db.get(CardList, list_id)
+    if not lst:
+        raise HTTPException(404, "List not found")
+    clash = db.scalar(select(CardList).where(CardList.name == name))
+    if clash and clash.id != list_id:
+        raise HTTPException(409, f"A list named {name!r} already exists")
+    lst.name = name
+    db.commit()
+    return RedirectResponse("/lists", status_code=303)
+
+
+@app.post("/lists/delete")
+def lists_delete(
+    list_id: int = Form(...),
+    mode: str = Form("move"),  # "move" cards to General, or "delete" them
+    db: Session = Depends(get_session),
+):
+    lst = db.get(CardList, list_id)
+    if not lst:
+        raise HTTPException(404, "List not found")
+    items = db.scalars(
+        select(BuylistItem).where(BuylistItem.list_id == list_id)
+    ).all()
+    for item in items:
+        if mode == "delete":
+            db.delete(item)
+        else:
+            # move to General, merging with an existing unlisted row if any
+            existing = db.scalar(
+                select(BuylistItem).where(
+                    BuylistItem.game == item.game,
+                    BuylistItem.printing_id == item.printing_id,
+                    BuylistItem.list_id.is_(None),
+                )
+            )
+            if existing:
+                existing.quantity += item.quantity
+                db.delete(item)
+            else:
+                item.list_id = None
+    db.delete(lst)
+    db.commit()
+    return RedirectResponse("/lists", status_code=303)
 
 
 # --- json api (used by the search UI) --------------------------------------
@@ -241,7 +380,12 @@ def export_page(request: Request, db: Session = Depends(get_session)):
     return templates.TemplateResponse(
         request,
         "export.html",
-        {"games": registry.all_games(), "sets": sets, "foilings": foilings},
+        {
+            "games": registry.all_games(),
+            "sets": sets,
+            "foilings": foilings,
+            "lists": _all_lists(db),
+        },
     )
 
 
@@ -252,9 +396,10 @@ def api_export(
     foilings: list[str] | None = Query(None),
     price_min: float | None = None,
     price_max: float | None = None,
+    scope: str = SCOPE_ALL,
 ):
     items = _apply_export_filters(
-        _load_buylist(db), sets, foilings, price_min, price_max
+        _load_buylist(db, scope), sets, foilings, price_min, price_max
     )
     return {
         "count": len(items),
@@ -271,9 +416,10 @@ def export_download(
     foilings: list[str] | None = Query(None),
     price_min: float | None = None,
     price_max: float | None = None,
+    scope: str = SCOPE_ALL,
 ):
     items = _apply_export_filters(
-        _load_buylist(db), sets, foilings, price_min, price_max
+        _load_buylist(db, scope), sets, foilings, price_min, price_max
     )
     if fmt == "reimport":
         body, filename = export.reimport_text(items), "buylist.txt"
@@ -289,9 +435,11 @@ def export_download(
 # --- list import -----------------------------------------------------------
 
 @app.get("/import", response_class=HTMLResponse)
-def import_page(request: Request):
+def import_page(request: Request, db: Session = Depends(get_session)):
     return templates.TemplateResponse(
-        request, "import.html", {"games": registry.all_games()}
+        request,
+        "import.html",
+        {"games": registry.all_games(), "lists": _all_lists(db)},
     )
 
 
@@ -310,6 +458,7 @@ class ImportCommitItem(BaseModel):
 class ImportCommitReq(BaseModel):
     game: str
     items: list[ImportCommitItem]
+    target_list: str | None = None  # None/"general" -> unlisted
 
 
 @app.post("/api/import/preview")
@@ -353,10 +502,12 @@ def api_import_preview_stream(req: ImportPreviewReq):
 @app.post("/api/import/commit")
 def api_import_commit(req: ImportCommitReq, db: Session = Depends(get_session)):
     added = updated = 0
+    target_list = _target_list_id(req.target_list)
     for item in req.items:
         p = item.printing
         created = _upsert_buylist_item(
             db,
+            list_id=target_list,
             game=req.game,
             card_identifier=item.card_identifier,
             card_name=item.card_name,
@@ -397,12 +548,18 @@ def _upsert_buylist_item(
     tcgplayer_product_id: str | None = None,
     tcgplayer_url: str | None = None,
     quantity: int = 1,
+    list_id: int | None = None,
 ) -> bool:
-    """Add a printing to the buylist or bump its quantity. Returns True if a new
-    row was created, False if an existing row was incremented."""
+    """Add a printing to a list (None = General) or bump its quantity there.
+    Returns True if a new row was created, False if an existing one was bumped.
+    The same printing may exist in several lists, each with its own quantity."""
     existing = db.scalar(
         select(BuylistItem).where(
-            BuylistItem.game == game, BuylistItem.printing_id == printing_id
+            BuylistItem.game == game,
+            BuylistItem.printing_id == printing_id,
+            BuylistItem.list_id.is_(None)
+            if list_id is None
+            else BuylistItem.list_id == list_id,
         )
     )
     if existing:
@@ -411,6 +568,7 @@ def _upsert_buylist_item(
     db.add(
         BuylistItem(
             game=game,
+            list_id=list_id,
             card_identifier=card_identifier,
             card_name=card_name,
             printing_id=printing_id,
@@ -446,10 +604,12 @@ def buylist_add(
     tcgplayer_product_id: str | None = Form(None),
     tcgplayer_url: str | None = Form(None),
     quantity: int = Form(1),
+    target_list: str | None = Form(None),
     db: Session = Depends(get_session),
 ):
     _upsert_buylist_item(
         db,
+        list_id=_target_list_id(target_list),
         game=game,
         card_identifier=card_identifier,
         card_name=card_name,

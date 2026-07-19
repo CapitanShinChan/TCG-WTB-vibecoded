@@ -151,6 +151,8 @@ async function addToBuylist(card, p, quantity) {
   fd.append("printing_id", p.identifier);
   fd.append("printing_label", p.label);
   fd.append("quantity", String(quantity));
+  const listSel = $("#qty-list");
+  fd.append("target_list", listSel ? listSel.value : "general");
   if (p.set_code) fd.append("set_code", p.set_code);
   if (p.foiling) fd.append("foiling", p.foiling);
   if (p.treatment) fd.append("treatment", p.treatment);
@@ -178,13 +180,16 @@ const buylistContainer = document.querySelector("#buylist-container");
 
 async function refreshBuylist() {
   if (!buylistContainer) return;
+  const scope = window.currentBuylistScope ? window.currentBuylistScope() : "all";
   try {
-    const r = await fetch("/partials/buylist");
+    const r = await fetch(`/partials/buylist?scope=${encodeURIComponent(scope)}`);
     if (r.ok) buylistContainer.innerHTML = await r.text();
   } catch (_) {
     /* leave the current markup in place on failure */
   }
 }
+// exposed so buylist.js can refresh the inline table when the scope changes
+window.refreshBuylist = refreshBuylist;
 
 // Delegate qty/remove form submits to fetch + refresh, so they update in
 // place instead of navigating to /buylist. The listener lives on the

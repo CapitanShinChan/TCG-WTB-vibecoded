@@ -13,6 +13,15 @@
         {% endfor %}
       </select>
     </label>
+    <label>
+      Import into
+      <select id="import-list">
+        <option value="general">General buylist</option>
+        {% for l in lists | default([]) %}
+        <option value="{{ l.id }}">{{ l.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
   </div>
 
   <textarea id="import-text" rows="12" placeholder="3x Tempestuous Kiss
