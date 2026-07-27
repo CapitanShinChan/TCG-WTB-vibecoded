@@ -67,6 +67,7 @@ def filter_items(
     foilings: set | None = None,  # may contain None for standard
     price_min: float | None = None,
     price_max: float | None = None,
+    price_basis: str = "suggested",  # "suggested" or "current"
 ) -> list[BuylistItem]:
     range_set = price_min is not None or price_max is not None
     out = []
@@ -76,12 +77,12 @@ def filter_items(
         if foilings is not None and it.foiling not in foilings:
             continue
         if range_set:
-            sp = it.suggested_price
-            if sp is None:  # exclude unpriced when a price range is applied
+            value = it.price if price_basis == "current" else it.suggested_price
+            if value is None:  # exclude unpriced when a price range is applied
                 continue
-            if price_min is not None and sp < price_min:
+            if price_min is not None and value < price_min:
                 continue
-            if price_max is not None and sp > price_max:
+            if price_max is not None and value > price_max:
                 continue
         out.append(it)
     return out

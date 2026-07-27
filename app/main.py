@@ -386,7 +386,9 @@ def _export_filter_options(items) -> tuple[list[str], list[str]]:
     return sets, foilings
 
 
-def _apply_export_filters(items, sets, foilings, price_min, price_max):
+def _apply_export_filters(
+    items, sets, foilings, price_min, price_max, price_basis="suggested"
+):
     set_filter = set(sets) if sets else None
     foiling_filter = None
     if foilings:
@@ -398,6 +400,7 @@ def _apply_export_filters(items, sets, foilings, price_min, price_max):
         foilings=foiling_filter,
         price_min=price_min,
         price_max=price_max,
+        price_basis=price_basis,
     )
 
 
@@ -423,10 +426,12 @@ def api_export(
     foilings: list[str] | None = Query(None),
     price_min: float | None = None,
     price_max: float | None = None,
+    price_basis: str = "suggested",
     lists: list[str] | None = Query(None),
 ):
     items = _apply_export_filters(
-        _load_buylist_scopes(db, lists), sets, foilings, price_min, price_max
+        _load_buylist_scopes(db, lists), sets, foilings,
+        price_min, price_max, price_basis,
     )
     return {
         "count": len(items),
@@ -443,10 +448,12 @@ def export_download(
     foilings: list[str] | None = Query(None),
     price_min: float | None = None,
     price_max: float | None = None,
+    price_basis: str = "suggested",
     lists: list[str] | None = Query(None),
 ):
     items = _apply_export_filters(
-        _load_buylist_scopes(db, lists), sets, foilings, price_min, price_max
+        _load_buylist_scopes(db, lists), sets, foilings,
+        price_min, price_max, price_basis,
     )
     if fmt == "reimport":
         body, filename = export.reimport_text(items), "buylist.txt"

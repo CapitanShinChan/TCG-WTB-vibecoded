@@ -15,6 +15,8 @@ function buildQuery() {
   const max = $("#price-max").value.trim();
   if (min !== "") p.append("price_min", min);
   if (max !== "") p.append("price_max", max);
+  const basis = $("#price-basis");
+  if (basis) p.append("price_basis", basis.value);
   $$(".f-list:checked").forEach((c) => p.append("lists", c.value));
   return p.toString();
 }

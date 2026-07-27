@@ -35,10 +35,16 @@
   </div>
 
   <div class="filter-group">
-    <h3>Suggested price</h3>
+    <h3>Price</h3>
+    <label class="range">based on
+      <select id="price-basis">
+        <option value="suggested">Suggested</option>
+        <option value="current">Current (market)</option>
+      </select>
+    </label>
     <label class="range">min $ <input type="number" id="price-min" min="0" step="0.5" placeholder="any"></label>
     <label class="range">max $ <input type="number" id="price-max" min="0" step="0.5" placeholder="any"></label>
-    <p class="hint">Items with no suggested price are excluded when a range is set.</p>
+    <p class="hint">min = costs more than, max = costs less than. Unpriced items are excluded when a range is set.</p>
   </div>
 
   <div class="filter-actions">
