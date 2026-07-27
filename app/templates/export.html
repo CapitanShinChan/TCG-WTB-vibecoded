@@ -5,14 +5,14 @@
 
 <section class="export-filters">
   <div class="filter-group">
-    <h3>List</h3>
-    <select id="export-list">
-      <option value="all">All (everything)</option>
-      <option value="general">General (unlisted)</option>
+    <h3>Lists</h3>
+    <div class="checks">
+      <label><input type="checkbox" class="f-list" value="general"> General (unlisted)</label>
       {% for l in lists | default([]) %}
-      <option value="{{ l.id }}">{{ l.name }}</option>
+      <label><input type="checkbox" class="f-list" value="{{ l.id }}"> {{ l.name }}</label>
       {% endfor %}
-    </select>
+    </div>
+    <p class="hint">Select one or more; none = everything.</p>
   </div>
 
   <div class="filter-group">

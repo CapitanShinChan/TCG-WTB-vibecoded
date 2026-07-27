@@ -19,7 +19,7 @@ from fastapi.responses import (
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from . import export
@@ -175,6 +175,33 @@ def _load_buylist(db: Session, scope: str | None = SCOPE_ALL) -> list[BuylistIte
                 stmt = stmt.where(BuylistItem.list_id == int(scope))
             except (TypeError, ValueError):
                 pass  # unknown scope -> treat as "all"
+    return list(db.scalars(stmt).all())
+
+
+def _load_buylist_scopes(
+    db: Session, scopes: list[str] | None
+) -> list[BuylistItem]:
+    """Union of items across several scopes (used by multi-select export).
+    Empty, or any "all" -> every item."""
+    stmt = select(BuylistItem).order_by(BuylistItem.created_at.desc())
+    if not scopes or SCOPE_ALL in scopes:
+        return list(db.scalars(stmt).all())
+    conds = []
+    ids = []
+    for s in scopes:
+        if s == SCOPE_GENERAL:
+            conds.append(BuylistItem.list_id.is_(None))
+        else:
+            try:
+                ids.append(int(s))
+            except (TypeError, ValueError):
+                pass
+    if ids:
+        conds.append(BuylistItem.list_id.in_(ids))
+    if conds:
+        stmt = stmt.where(or_(*conds))
+    else:
+        return []  # scopes given but none valid -> nothing
     return list(db.scalars(stmt).all())
 
 
@@ -396,10 +423,10 @@ def api_export(
     foilings: list[str] | None = Query(None),
     price_min: float | None = None,
     price_max: float | None = None,
-    scope: str = SCOPE_ALL,
+    lists: list[str] | None = Query(None),
 ):
     items = _apply_export_filters(
-        _load_buylist(db, scope), sets, foilings, price_min, price_max
+        _load_buylist_scopes(db, lists), sets, foilings, price_min, price_max
     )
     return {
         "count": len(items),
@@ -416,10 +443,10 @@ def export_download(
     foilings: list[str] | None = Query(None),
     price_min: float | None = None,
     price_max: float | None = None,
-    scope: str = SCOPE_ALL,
+    lists: list[str] | None = Query(None),
 ):
     items = _apply_export_filters(
-        _load_buylist(db, scope), sets, foilings, price_min, price_max
+        _load_buylist_scopes(db, lists), sets, foilings, price_min, price_max
     )
     if fmt == "reimport":
         body, filename = export.reimport_text(items), "buylist.txt"
