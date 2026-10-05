@@ -19,8 +19,8 @@ from fastapi.responses import (
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from sqlalchemy import func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy import func, or_, select, update
+from sqlalchemy.orm import Session, object_session
 
 from . import export
 from .auth import (
@@ -32,10 +32,12 @@ from .auth import (
 )
 from .config import DEBUG
 from .db import SessionLocal, get_session, init_db
-from .fabrary.client import FabraryError
+from .fabrary.client import FabraryError, client as catalogue
+from .fabrary.compat import PrintingConflict, canonical_printing_id, reconcile_items
 from .importer import parse_list, resolve_iter, resolve_list
 from .logging_setup import log_http, setup_logging
 from .models import BuylistItem, CardList
+from .pricing.history import merge_pricing, record_price, sparkline, valid_price
 from .pricing.tcgplayer import (
     CURRENCY,
     TCGPlayerError,
@@ -51,6 +53,7 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 templates.env.globals["app_debug"] = DEBUG
 # printing-code display (NF/CF/RF/EA) used by the buylist table
 templates.env.filters["printing_code"] = export.display_printing
+templates.env.filters["price_sparkline"] = sparkline
 
 app = FastAPI(title="Card Inventory")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
@@ -317,6 +320,20 @@ def lists_delete(
     lst = db.get(CardList, list_id)
     if not lst:
         raise HTTPException(404, "List not found")
+    if mode != "delete":
+        # Reconcile both buckets before moving, so legacy/canonical IDs do not
+        # create duplicate rows when a named list is merged into General.
+        card_ids = db.scalars(select(BuylistItem.card_identifier).where(
+            BuylistItem.list_id == list_id, BuylistItem.game == "flesh-and-blood",
+        ).distinct()).all()
+        try:
+            for card_id in card_ids:
+                reconcile_items(db, card_id, list_id)
+                reconcile_items(db, card_id, None)
+        except PrintingConflict as exc:
+            raise HTTPException(409, str(exc)) from exc
+        except FabraryError as exc:
+            raise HTTPException(502, f"Card provider error: {exc}") from exc
     items = db.scalars(
         select(BuylistItem).where(BuylistItem.list_id == list_id)
     ).all()
@@ -334,6 +351,7 @@ def lists_delete(
             )
             if existing:
                 existing.quantity += item.quantity
+                merge_pricing(existing, item)
                 db.delete(item)
             else:
                 item.list_id = None
@@ -343,6 +361,11 @@ def lists_delete(
 
 
 # --- json api (used by the search UI) --------------------------------------
+
+@app.get("/api/catalogue-status")
+def api_catalogue_status():
+    return catalogue.status()
+
 
 @app.get("/api/search")
 def api_search(game: str, q: str):
@@ -587,6 +610,19 @@ def _upsert_buylist_item(
     """Add a printing to a list (None = General) or bump its quantity there.
     Returns True if a new row was created, False if an existing one was bumped.
     The same printing may exist in several lists, each with its own quantity."""
+    db.flush()  # repeated import rows must see earlier pending additions
+    if game == "flesh-and-blood":
+        try:
+            card = catalogue.get_card(card_identifier)
+            printing_id = canonical_printing_id(
+                card, printing_id, foiling=foiling, image_url=image_url, treatment=treatment,
+                tcgplayer_product_id=tcgplayer_product_id,
+            )
+            reconcile_items(db, card_identifier, list_id, card=card)
+        except PrintingConflict as exc:
+            raise HTTPException(409, str(exc)) from exc
+        except FabraryError as exc:
+            raise HTTPException(502, f"Card provider error: {exc}") from exc
     existing = db.scalar(
         select(BuylistItem).where(
             BuylistItem.game == game,
@@ -692,11 +728,30 @@ def _refresh_price(item: BuylistItem) -> bool:
     result = get_pricing(
         item.tcgplayer_product_id, variant_for_foiling(item.foiling)
     )
+    if result.current_price is not None and not valid_price(result.current_price):
+        raise TCGPlayerError("Invalid current market price")
+    db = object_session(item)
+    if db is not None:
+        # Fetch before locking; SQLite's write lock lasts through the caller's
+        # commit/rollback. Reloading alone still lets overlapping writers lose
+        # observations. Flush pending edits before refreshing the pricing fields.
+        db.flush()
+        db.execute(
+            update(BuylistItem).where(BuylistItem.id == item.id)
+            .values(price_history=BuylistItem.price_history)
+            .execution_options(synchronize_session=False)
+        )
+        db.refresh(item, attribute_names=[
+            "price_history", "price", "suggested_price", "price_sample_size",
+            "price_updated_at", "currency",
+        ])
+    observed_at = dt.datetime.now(dt.timezone.utc)
+    record_price(item, result.current_price, observed_at, result.currency)
     item.price = result.current_price
     item.suggested_price = result.suggested_price
     item.price_sample_size = result.sample_size
     item.currency = result.currency
-    item.price_updated_at = dt.datetime.now(dt.timezone.utc)
+    item.price_updated_at = observed_at
     return True
 
 
@@ -733,9 +788,12 @@ def buylist_refresh_all(db: Session = Depends(get_session)):
     for item in items:
         try:
             _refresh_price(item)
+            # Release SQLite's write lock before the next provider request,
+            # matching the streaming route's per-item transaction boundary.
+            db.commit()
         except TCGPlayerError:
+            db.rollback()
             continue  # skip items that fail; keep going
-    db.commit()
     return RedirectResponse("/buylist", status_code=303)
 
 

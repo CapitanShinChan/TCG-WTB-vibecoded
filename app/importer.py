@@ -23,6 +23,7 @@ import re
 from dataclasses import dataclass, field
 
 from .providers.base import GameProvider, Printing
+from .treatments import has_treatment
 
 # modifier code -> foiling value as FaBrary labels it (None == standard/non-foil)
 _FOILING_CODES = {"RF": "Rainbow", "CF": "Cold", "MV": "Marvel", "NF": None}
@@ -88,12 +89,14 @@ def parse_list(text: str) -> list[ParsedLine]:
 
 
 def _is_extended_art(p: Printing) -> bool:
-    return (p.treatment or "").strip().lower() == "extended art"
+    return has_treatment(p.treatment, "Extended Art")
 
 
 def _is_alt_art(p: Printing) -> bool:
-    ident = (p.identifier or "").upper()
-    return any(ident.startswith(pfx) for pfx in _ALT_ART_PREFIXES)
+    ident = (p.identifier or "").removeprefix("fab:").upper()
+    return has_treatment(p.treatment, "Alternate Art") or any(
+        ident.startswith(pfx) for pfx in _ALT_ART_PREFIXES
+    )
 
 
 def _is_short_print(p: Printing) -> bool:

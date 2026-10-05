@@ -34,6 +34,8 @@ form.addEventListener("submit", async (e) => {
     renderResults(results);
   } catch (err) {
     setStatus("Error: " + err.message);
+  } finally {
+    window.refreshCatalogueStatus();
   }
 });
 
@@ -66,6 +68,8 @@ async function openPrintings(card) {
     renderPrintings(card, printings);
   } catch (err) {
     printingsEl.innerHTML = `<p class="status">Error: ${escapeHtml(err.message)}</p>`;
+  } finally {
+    window.refreshCatalogueStatus();
   }
 }
 
@@ -135,7 +139,7 @@ async function confirmQtyPrompt() {
     await addToBuylist(card, p, quantity);
     closeQtyPrompt();
   } catch (err) {
-    confirmBtn.textContent = "Error";
+    setStatus("Error: " + err.message);
   } finally {
     confirmBtn.disabled = false;
     confirmBtn.textContent = "Add";
@@ -163,7 +167,10 @@ async function addToBuylist(card, p, quantity) {
   if (p.price_source_url) fd.append("tcgplayer_url", p.price_source_url);
   dbg("add to buylist", { card: card.name, printing: p.identifier, quantity });
   const r = await fetch("/buylist/add", { method: "POST", body: fd });
-  if (!r.ok) throw new Error(r.statusText);
+  if (!r.ok) {
+    const error = await r.json().catch(() => ({}));
+    throw new Error(error.detail || r.statusText);
+  }
   await refreshBuylist();
 }
 

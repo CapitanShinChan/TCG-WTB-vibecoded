@@ -6,6 +6,7 @@ venv/
 *.egg-info/
 
 # App data
+.cache/
 *.db
 *.db.bak
 inventory.db

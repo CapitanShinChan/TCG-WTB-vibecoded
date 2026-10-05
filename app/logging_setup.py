@@ -5,7 +5,7 @@ detailed log, and helpers for logging incoming and outgoing requests.
 - logs/http.jsonl  — one ECS JSON object per line (log-aggregator ingestion)
 
 Both cover incoming ("local") requests to this app and outgoing requests to
-external services (FaBrary, TCGplayer, Cognito).
+external services (FaBrary catalogue CDN, TCGplayer).
 """
 from __future__ import annotations
 

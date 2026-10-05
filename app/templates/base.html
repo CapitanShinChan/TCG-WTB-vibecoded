@@ -24,6 +24,7 @@
     </nav>
   </header>
   <main>
+    <p id="catalogue-warning" class="warn-banner hidden" role="status"></p>
     {% block content %}{% endblock %}
   </main>
 
@@ -36,6 +37,17 @@
     </div>
   </div>
 
+  <!-- Native dialog keeps keyboard focus inside the enlarged card preview. -->
+  <dialog id="card-preview" aria-labelledby="card-preview-title">
+    <figure>
+      <button type="button" class="card-preview-close" aria-label="Close card preview" autofocus>&times;</button>
+      <img id="card-preview-image" alt="">
+      <figcaption id="card-preview-title"></figcaption>
+    </figure>
+  </dialog>
+
+  <script src="/static/card-preview.js"></script>
+  <script src="/static/catalogue.js"></script>
   {% block scripts %}{% endblock %}
   <script src="/static/buylist.js"></script>
 </body>

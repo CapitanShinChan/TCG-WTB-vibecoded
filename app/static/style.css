@@ -164,6 +164,13 @@ table.buylist { width: 100%; border-collapse: collapse; }
 .buylist .actions form { display: inline-block; margin: 0 0.2rem 0 0; vertical-align: middle; }
 .price .sub { font-size: 0.7rem; color: var(--muted); margin-top: 0.15rem; }
 
+/* Latest recorded current-market prices (no chart library or extra requests). */
+.buylist .price-history { width: 104px; min-width: 104px; }
+.price-sparkline { display: block; }
+.price-sparkline.trend-up { color: #f28b82; }
+.price-sparkline.trend-down { color: #7dd65a; }
+.price-sparkline.trend-flat { color: var(--muted); }
+
 /* clickable suggested price */
 .suggested-price-link {
   background: transparent;
@@ -178,6 +185,64 @@ table.buylist { width: 100%; border-collapse: collapse; }
 .suggested-price-link strong { border-bottom: 1px dashed var(--accent-2); }
 .suggested-price-link:hover strong { color: var(--accent-2); }
 .suggested-price-link .sub { display: block; font-size: 0.7rem; color: var(--muted); margin-top: 0.15rem; }
+
+/* enlarged card preview */
+.card-preview-trigger {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  cursor: zoom-in;
+}
+.card-preview-name:hover { color: var(--accent-2); text-decoration: underline; }
+.card-preview-trigger:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 4px; }
+.card-preview-thumb img { display: block; }
+html.card-preview-open { overflow: hidden; }
+#card-preview {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 16px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+}
+#card-preview[open] { display: grid; place-items: center; }
+#card-preview::backdrop { background: rgba(0, 0, 0, 0.85); }
+#card-preview figure { position: relative; margin: 0; }
+#card-preview-image {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: min(600px, calc(100vw - 32px));
+  max-height: calc(100dvh - 112px);
+  object-fit: contain;
+  border-radius: 12px;
+}
+#card-preview-title {
+  position: absolute;
+  top: 100%;
+  width: 100%;
+  margin-top: 8px;
+  max-height: 3em;
+  overflow: auto;
+  text-align: center;
+  font-size: 0.9rem;
+}
+.card-preview-close {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  padding: 0 12px;
+  height: 32px;
+  background: var(--panel-2);
+  font-size: 1.5rem;
+}
 
 /* sales modal table */
 .sales-table { width: 100%; border-collapse: collapse; }

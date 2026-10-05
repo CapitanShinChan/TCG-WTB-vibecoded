@@ -28,6 +28,7 @@
       <th>Rarity</th>
       <th data-col data-type="num">Qty</th>
       <th data-col data-type="num">Current</th>
+      <th title="Last 10 recorded current prices, oldest left; each graph has its own scale">History</th>
       <th data-col data-type="num">Suggested</th>
       <th></th>
     </tr>
@@ -36,9 +37,21 @@
     {% for it in items %}
     <tr>
       <td class="thumb">
-        {% if it.image_url %}<img src="{{ it.image_url }}" alt="{{ it.card_name }}">{% endif %}
+        {% if it.image_url %}
+        <button type="button" class="card-preview-trigger card-preview-thumb"
+                data-image="{{ it.image_url }}" data-card-name="{{ it.card_name }}"
+                aria-label="Enlarge {{ it.card_name }}" aria-haspopup="dialog" aria-controls="card-preview">
+          <img src="{{ it.image_url }}" alt="{{ it.card_name }}">
+        </button>
+        {% endif %}
       </td>
-      <td data-sort="{{ it.card_name }}">{{ it.card_name }}</td>
+      <td data-sort="{{ it.card_name }}">
+        {% if it.image_url %}
+        <button type="button" class="card-preview-trigger card-preview-name"
+                data-image="{{ it.image_url }}" data-card-name="{{ it.card_name }}"
+                aria-haspopup="dialog" aria-controls="card-preview">{{ it.card_name }}</button>
+        {% else %}{{ it.card_name }}{% endif %}
+      </td>
       <td data-sort="{{ it.set_code or '' }}">{{ it.set_code or "" }}</td>
       <td data-sort="{{ it | printing_code }}">
         {{ it | printing_code }}
@@ -68,6 +81,11 @@
         {% else %}
           <span class="placeholder">—</span>
         {% endif %}
+      </td>
+      <td class="price-history">
+        {% with chart = (it.price_history | default(none)) | price_sparkline %}
+          {% include "_price_sparkline.html" %}
+        {% endwith %}
       </td>
       <td class="price" data-sort="{{ it.suggested_price if it.suggested_price is not none else -1 }}">
         {% if it.suggested_price is not none %}

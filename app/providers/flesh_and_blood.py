@@ -1,9 +1,10 @@
-"""Flesh and Blood provider backed by FaBrary's AppSync API."""
+"""Flesh and Blood provider backed by the local FaBrary catalogue."""
 from __future__ import annotations
 
 from ..fabrary.client import card_image_url
 from ..fabrary.client import client as fabrary
 from .base import CardResult, GameProvider, Printing
+from ..treatments import encode_treatments
 
 
 class FleshAndBloodProvider(GameProvider):
@@ -29,21 +30,20 @@ class FleshAndBloodProvider(GameProvider):
         if not card:
             return []
         out = []
-        for p in card.get("printingsWithPrices") or []:
+        for p in card.get("printings") or []:
             tcg = p.get("tcgplayer") or {}
             out.append(
                 Printing(
-                    identifier=p["identifier"],
+                    identifier=f"fab:{p['print']}",
                     set_code=p.get("set"),
                     edition=p.get("edition"),
                     foiling=p.get("foiling"),
-                    treatment=p.get("treatment"),
+                    treatment=encode_treatments(p.get("treatments") or []),
                     rarity=p.get("rarity"),
                     image=card_image_url(p.get("image")),
-                    # price stays a placeholder for now; we capture the
-                    # tcgplayer product id/url so refresh can be wired later
+                    # Market prices are fetched separately from TCGplayer.
                     price=None,
-                    currency=tcg.get("currency"),
+                    currency=tcg.get("currency") or ("USD" if tcg.get("productId") else None),
                     price_source_id=str(tcg["productId"]) if tcg.get("productId") else None,
                     price_source_url=tcg.get("url"),
                 )

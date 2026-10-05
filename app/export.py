@@ -10,6 +10,7 @@ Two output formats:
 from __future__ import annotations
 
 from .models import BuylistItem
+from .treatments import has_treatment
 
 # foiling value -> import code (standard/non-foil has no code)
 _FOILING_CODE = {"Rainbow": "RF", "Cold": "CF", "Marvel": "MV"}
@@ -27,7 +28,7 @@ def codes_for(item: BuylistItem) -> str:
     fc = _FOILING_CODE.get(item.foiling or "")
     if fc:
         parts.append(fc)
-    if (item.treatment or "").strip().lower() == "extended art":
+    if has_treatment(item.treatment, "Extended Art"):
         parts.append("EA")
     return " ".join(parts)
 
@@ -36,7 +37,7 @@ def display_printing(item: BuylistItem) -> str:
     """Short printing code for display/sorting: NF/CF/RF/MV, plus EA.
     (Standard/non-foil shows as NF, unlike the import codes where it's blank.)"""
     code = _FOILING_CODE.get(item.foiling or "", "NF")
-    if (item.treatment or "").strip().lower() == "extended art":
+    if has_treatment(item.treatment, "Extended Art"):
         code += " EA"
     return code
 

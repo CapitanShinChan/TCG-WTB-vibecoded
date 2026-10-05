@@ -31,6 +31,7 @@ _ADDED_COLUMNS = {
         "suggested_price": "FLOAT",
         "price_sample_size": "INTEGER",
         "price_updated_at": "DATETIME",
+        "price_history": "JSON",
     },
 }
 

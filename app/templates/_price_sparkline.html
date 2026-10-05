@@ -1,0 +1,14 @@
+{% if chart.points %}
+<svg class="price-sparkline trend-{{ chart.direction }}" viewBox="0 0 88 28" width="88" height="28"
+     role="img" aria-label="{{ chart.label }}">
+  <title>{{ chart.label }}</title>
+  {% if chart.points | length > 1 %}
+  <polyline points="{{ chart.line }}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+  {% endif %}
+  {% for point in chart.points %}
+  <circle cx="{{ point.x }}" cy="{{ point.y }}" r="2" fill="currentColor"><title>{{ point.title }}</title></circle>
+  {% endfor %}
+</svg>
+{% else %}
+<span class="placeholder" title="{{ chart.label }}" aria-label="{{ chart.label }}">—</span>
+{% endif %}

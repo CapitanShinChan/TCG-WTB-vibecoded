@@ -48,6 +48,7 @@ async function runPreview() {
   } catch (err) {
     statusEl.textContent = "Error: " + err.message;
   } finally {
+    window.refreshCatalogueStatus();
     previewBtn.disabled = false;
   }
 }
@@ -185,6 +186,8 @@ async function recheckFailed(btn) {
   } catch (err) {
     statusEl.textContent = "Error: " + err.message;
     btn.disabled = false;
+  } finally {
+    window.refreshCatalogueStatus();
   }
 }
 

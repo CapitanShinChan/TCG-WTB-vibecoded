@@ -8,6 +8,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    JSON,
     String,
     UniqueConstraint,
 )
@@ -62,6 +63,7 @@ class BuylistItem(Base):
     printing_label: Mapped[str] = mapped_column(String)
     set_code: Mapped[str | None] = mapped_column(String, nullable=True)
     foiling: Mapped[str | None] = mapped_column(String, nullable=True)
+    # New rows use JSON arrays in this text field; legacy scalar labels remain readable.
     treatment: Mapped[str | None] = mapped_column(String, nullable=True)
     rarity: Mapped[str | None] = mapped_column(String, nullable=True)
     image_url: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -73,6 +75,8 @@ class BuylistItem(Base):
     suggested_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     price_sample_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
     price_updated_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    # At most ten {price, at, currency} observations; NULL until first refresh.
+    price_history: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
     currency: Mapped[str | None] = mapped_column(String, nullable=True)
     tcgplayer_product_id: Mapped[str | None] = mapped_column(String, nullable=True)
     tcgplayer_url: Mapped[str | None] = mapped_column(String, nullable=True)

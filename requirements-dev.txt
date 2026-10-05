@@ -1,0 +1,6 @@
+-r requirements.txt
+# TestClient transport (current Starlette uses httpx2; httpx supports older versions).
+httpx
+httpx2
+# Browser regression runner (test-only dependency).
+playwright
