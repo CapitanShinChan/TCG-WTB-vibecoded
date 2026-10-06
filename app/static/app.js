@@ -124,20 +124,21 @@ qtyOverlay.addEventListener("click", (e) => {
 });
 qtyInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") confirmQtyPrompt();
-  if (e.key === "Escape") closeQtyPrompt();
 });
 $("#qty-confirm").addEventListener("click", confirmQtyPrompt);
 
 async function confirmQtyPrompt() {
   if (!pendingAdd) return;
   const quantity = Math.max(1, parseInt(qtyInput.value, 10) || 1);
-  const { card, p } = pendingAdd;
+  const submittedAdd = pendingAdd;
+  const { card, p } = submittedAdd;
   const confirmBtn = $("#qty-confirm");
   confirmBtn.disabled = true;
   confirmBtn.textContent = "Adding…";
   try {
     await addToBuylist(card, p, quantity);
-    closeQtyPrompt();
+    // A dismissed request must not close a newly opened quantity prompt.
+    if (pendingAdd === submittedAdd) closeQtyPrompt();
   } catch (err) {
     setStatus("Error: " + err.message);
   } finally {
@@ -180,6 +181,19 @@ $("#modal-close").addEventListener("click", () => modal.classList.add("hidden"))
 modal.addEventListener("click", (e) => {
   if (e.target === modal) modal.classList.add("hidden");
 });
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  // Native dialogs own Escape, including the noncancelable progress dialog.
+  if (document.querySelector("dialog[open]")) return;
+  // Handle only the topmost add-card overlay, regardless of the focused control.
+  if (!qtyOverlay.classList.contains("hidden")) {
+    e.preventDefault();
+    closeQtyPrompt();
+  } else if (!modal.classList.contains("hidden")) {
+    e.preventDefault();
+    modal.classList.add("hidden");
+  }
+});
 
 // --- inline buylist (shown under the search) ------------------------------
 
@@ -198,15 +212,15 @@ async function refreshBuylist() {
 // exposed so buylist.js can refresh the inline table when the scope changes
 window.refreshBuylist = refreshBuylist;
 
-// Delegate qty/remove form submits to fetch + refresh, so they update in
+// Delegate removal form submits to fetch + refresh, so they update in
 // place instead of navigating to /buylist. The listener lives on the
 // container, so it keeps working after innerHTML is replaced.
 if (buylistContainer) {
   buylistContainer.addEventListener("submit", async (e) => {
     const formEl = e.target;
     if (!(formEl instanceof HTMLFormElement)) return;
-    // refresh-all is handled with a progress bar in buylist.js — let it bubble
-    if (formEl.getAttribute("action") === "/buylist/refresh-all") return;
+    // Price refreshes and in-place quantity changes are handled in buylist.js.
+    if (["/buylist/refresh-all", "/buylist/refresh-price", "/buylist/qty"].includes(formEl.getAttribute("action"))) return;
     e.preventDefault();
     dbg("buylist action", formEl.getAttribute("action"));
     try {

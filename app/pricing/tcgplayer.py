@@ -193,6 +193,11 @@ def compute_pricing(data: dict, variant: str | None = None) -> PricingResult:
         if current is not None and current < suggested:
             suggested = current
         suggested = _round_price(suggested)
+        # The first weighted price is the newest valid sale bucket's midpoint.
+        suggested = min(suggested, prices[0])
+        # Rounding must not undo the existing market-price ceiling either.
+        if current is not None:
+            suggested = min(suggested, current)
     return PricingResult(
         current_price=current,
         suggested_price=suggested,

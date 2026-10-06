@@ -15,10 +15,23 @@ the TCGplayer product id captured on each printing:
 
 - **Current** — most recent market price listed on TCGplayer.
 - **Suggested** — trimmed mean of recent sales for the Near Mint / English SKU:
-  each sale bucket's midpoint price is weighted by quantity sold; if there are
-  10+ sale points, the highest 25% are discarded before averaging.
+  each sale bucket's midpoint price is weighted by quantity sold (latest 100
+  weighted points); if there are 10+ points, the highest 25% are discarded before
+  averaging. After the usual market cap and .00/.50 rounding, the final value is
+  capped at both the newest valid sale-bucket price and the current market price.
+  A cap may therefore produce a value outside .00/.50. The API supplies aggregated
+  buckets, not individual transactions: "latest sale" means the newest valid
+  bucket's low/high midpoint, or its available price when one side is missing.
+  Missing sales do not create a suggested price. Refresh saved prices after
+  restarting to apply the updated calculation; old snapshots are not rewritten.
 
 Refresh a single item (↻) or all items ("Refresh all prices") from the buylist.
+A centered green progress dialog dims the app and blocks background mouse,
+keyboard and scrolling while the request runs. Bulk updates show a processed
+count and percentage; individual updates show an indeterminate animation.
+The dialog closes on completion or failure, and errors appear in the page.
+Import preview uses the same dialog with card-matching text. Reduced-motion
+preferences are respected.
 
 ## Setup
 
@@ -38,6 +51,10 @@ Then open http://127.0.0.1:8000
 
 - **Search**: pick a game, type a card name, browse results (images preloaded
   from the provider). Click a card to see every printing, then "Add to buylist".
+  Escape closes the quantity/destination prompt from any focused control; another
+  Escape closes the printing picker. Closing a prompt does not undo an add request
+  already submitted. Native dialogs keep their own Escape behavior, including the
+  noncancelable progress dialog.
 - **Import**: paste a card list and add many at once. Format is one card per
   line, `Nx [CODES] Name`, e.g. `3x Tempestuous Kiss` or
   `1x CF EA Flowstate Embodiment`. Codes: `RF` Rainbow Foil, `CF` Cold Foil,
@@ -46,7 +63,14 @@ Then open http://127.0.0.1:8000
   shows what matched before you add the selected rows.
 - **Buylist**: view/adjust quantities, remove items, and refresh prices. A list
   selector switches between **All**, **General** (cards not in any list) and
-  each named list.
+  each named list. Quantity +/- buttons update in place without reloading or
+  changing the selected view, search text, row order, or sort selection.
+  Select a named list to reveal **Edit buylist** (rename without leaving the
+  view) and **Delete buylist**. Deletion asks for confirmation, removes the
+  selected list and all its entries, and then shows All. Other lists and General
+  are not affected. All/General themselves cannot be renamed or deleted.
+  The Add-to-buylist destination menu updates with renames and deletions; if its
+  selected list is deleted, the destination returns to General.
 - **Lists**: group cards into named lists (e.g. one per deck) on the Lists page
   — create empty, rename, delete. The same printing can live in several lists,
   each with its own quantity. Deleting a list asks whether to keep its cards
@@ -56,7 +80,11 @@ Then open http://127.0.0.1:8000
 - **Export**: filter the buylist (by set, printing/foiling, suggested-price
   range) and export either a Discord "WTB" message (grouped by set, with
   suggested prices) or a re-importable `.txt` list. Copy to clipboard or
-  download.
+  download. In the Discord message and its `.txt` download, an exactly-zero
+  suggested price is shown as `0.5$` per card. Missing and nonzero prices are
+  unchanged (this is not a minimum-price rule). This is an export-only asking
+  price: saved suggestions, price history, the pricing algorithm and price-range
+  filters are unchanged. Re-importable lists still omit prices and emojis.
 
 ## Price history
 
@@ -71,9 +99,13 @@ TCGplayer's historical sale buckets and not an automatic daily tracker.
 A tiny SVG **History** graph appears between Current and Suggested on both
 buylist views, including named lists and the search page's inline table. Points
 run oldest-to-newest left-to-right, evenly spaced by observation rather than
-elapsed time. Each graph uses its own vertical scale. Hover a point for its
-price/date; screen-reader text exposes the observations. Rising prices are red,
-falling prices green, and flat prices grey; a single observation is a dot.
+elapsed time. Each graph uses its own vertical scale. Its tooltip shows only the
+point count, percentage change, and latest observation date (`yyyy/mm/dd`, UTC).
+Downward trends compare with the highest displayed price; upward trends compare
+with the lowest. No net change shows 0%; a single point or undefined percentage
+shows N/A, and a missing date shows Unknown. Rising prices are red,
+falling prices green, and unchanged prices blue; a single observation is a blue dot.
+Color reflects the net change from the first to the last displayed observation.
 Unrecorded histories show a dash. No chart library or extra API request is used.
 
 Restart the app to add the nullable `price_history` JSON column automatically;
@@ -89,6 +121,63 @@ Provider fetching happens first. SQLite serializes all database writes, so other
 writes can briefly wait. Both bulk refresh routes commit each item separately,
 releasing the lock before the next provider call; completed items remain saved
 if a later item fails.
+
+## GEM pack labels
+
+GEM printings are labeled by their actual pack, rather than one generic GEM set.
+The same labels are used by search results, printing choices, imports, buylist
+rows, and export filters/grouping. Printed card IDs and variant identities are
+not changed: for example, GEM141 belongs to GEM5 but stays GEM141.
+
+Export resolves the pack directly from each FaB printing ID, so old rows still
+stored as generic GEM are filtered and grouped correctly without requiring a
+metadata migration first. When recognized GEM cards are present, the export
+page offers all six GEM1–GEM6 checkboxes, including packs with no saved cards.
+Selecting an empty pack produces no cards; unknown GEM codes keep their existing
+set label instead of being assigned to a pack by guesswork. Other games are not
+reclassified. Restart a running app to load changed Python export code.
+
+Discord export headers use wrapper-color emojis, visually matched to the official
+pack images below. Two-color packs use paired dots rather than an invented single
+color; these are approximate Unicode colors, not official color names:
+
+- 🔴 GEM1 — deep red ([wrapper](https://cdn.fabtcg.com/uploads/2025/06/Gem_packs.png)).
+- 🔵 GEM2 — teal/blue ([wrapper](https://cdn.fabtcg.com/uploads/2025/07/25_05_GEMPACK_2_CAROUSEL3.jpg)).
+- 🔴🔵 GEM3 — red and blue/indigo ([wrapper](https://cdn.fabtcg.com/uploads/2025/12/GEMPACK_3_PACKS-1.png)).
+- ⚪ GEM4 — pearl/ivory ([wrapper](https://cdn.fabtcg.com/uploads/2026/01/GEM-PACK-4-PACKS-1-scaled.png)).
+- 🔵🟣 GEM5 — cyan and purple ([wrapper](https://cdn.fabtcg.com/uploads/2026/05/GEM-PACK-5-PACKS_-scaled.png)).
+- 🟣 GEM6 — dark purple ([official artwork with wrappers](https://cdn.fabtcg.com/uploads/2026/09/gem-pack-6-cover-1024x768.png)); the surrounding green glow is not the wrapper color.
+
+Pack 1–5 images are listed in the [official Armory assets](https://fabtcg.com/digital-assets/armory-events/);
+pack 6 artwork is linked from the [official announcement](https://fabtcg.com/articles/gem-pack-6/).
+Other sets, unknown generic GEM groups and other-game groups retain 📦. Exporting
+uses this local mapping; it does not download artwork or call a provider.
+
+- [GEM1](https://api.cardvault.fabtcg.com/carddb/api/v1/product-cards/gem-pack-1/): `GEM001`–`GEM032`.
+- [GEM2](https://api.cardvault.fabtcg.com/carddb/api/v1/product-cards/gem-pack-2/): `GEM033`–`GEM068`.
+- [GEM3](https://api.cardvault.fabtcg.com/carddb/api/v1/product-cards/gem-pack-3/): `GEM069`–`GEM104`.
+- [GEM4](https://api.cardvault.fabtcg.com/carddb/api/v1/product-cards/gem-pack-4/): `GEM105`–`GEM140`.
+- [GEM5](https://api.cardvault.fabtcg.com/carddb/api/v1/product-cards/gem-pack-5/): `GEM141`–`GEM183`.
+- [GEM6](https://api.cardvault.fabtcg.com/carddb/api/v1/product-cards/gem-pack-6/): `GEM184`–`GEM219`.
+
+The assignments were checked against the official CardDB product endpoints
+above and saved as a small offline mapping. There are no new network requests
+on startup or lookup. The current endpoints omit four paired GEM1 weapon codes
+(GEM002/004/006/009), which are explicitly assigned by the
+[official promo register](https://fabtcg.com/collectors-centre/promos-and-extras/).
+The GEM6 endpoint currently stops at GEM218; GEM219 is Minerva Themis in the
+FaBrary catalogue, corroborated as GEM6 by
+[this report](https://afabjourney.substack.com/p/just-two-armories-this-week).
+The [official GEM6 announcement](https://fabtcg.com/articles/gem-pack-6/)
+describes a 36-card set. Source-backed code lists and these exceptions are
+recorded in `tests/fixtures/gem_pack_codes.json`.
+
+Restart the app once to correct existing FaB GEM `set_code` values and matching
+GEM prefixes in their display labels. This is an idempotent metadata-only update:
+quantities, list membership, IDs, images, TCGplayer references and complete price
+history stay untouched. New additions and stale import/add payloads are normalized
+too. Unknown, malformed or future card codes are left unchanged rather than guessed;
+new GEM packs require an explicit verified mapping update.
 
 ## Architecture
 
@@ -182,7 +271,8 @@ New printing IDs are `fab:<print>`: the complete FaBrary variant key, not its
 shared card/set identifier. Foilings, editions, and treatments stay distinct.
 The prefix prevents new non-foil IDs from colliding with old foil entries.
 
-There is no startup database migration. When adding a card or moving a list's
+There is no startup migration of printing IDs; the GEM correction above only
+updates set metadata. When adding a card or moving a list's
 cards into General, affected legacy rows are reconciled inside that operation's
 transaction. Matching uses the saved ID, foiling, treatments, image and (when
 available) TCGplayer product reference. A renamed image alone does not establish
@@ -222,6 +312,9 @@ card images and intercepted requests (no running server, database, or live API n
 ```bash
 .venv/Scripts/python -m playwright install chromium
 .venv/Scripts/python -B tests/card_preview_browser.py
+.venv/Scripts/python -B tests/loading_overlay_browser.py
+.venv/Scripts/python -B tests/buylist_management_browser.py
+.venv/Scripts/python -B tests/add_card_modal_browser.py
 ```
 
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE` optionally selects an existing Chromium executable.

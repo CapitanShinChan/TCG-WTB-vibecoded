@@ -144,6 +144,20 @@ table.buylist { width: 100%; border-collapse: collapse; }
 .buylist-toolbar { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; margin-bottom: 0.5rem; }
 .scope-picker { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.8rem; color: var(--muted); }
 
+/* Named-buylist editing, also available beside the inline list selector. */
+.buylist-toolbar { flex-wrap: wrap; }
+.buylist-list-controls { display: flex; align-items: flex-end; gap: 0.65rem; flex-wrap: wrap; }
+html.list-dialog-open { overflow: hidden; }
+.list-dialog { width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 26px; border: 1px solid var(--border); border-radius: 16px; background: var(--panel); color: var(--text); box-shadow: 0 20px 70px #0008; }
+.list-dialog::backdrop { background: rgba(15, 17, 21, 0.75); }
+.list-dialog h2 { margin: 0 0 20px; font-size: 1.25rem; }
+.list-name-field { display: flex; flex-direction: column; gap: 8px; color: var(--muted); font-size: 0.85rem; }
+.list-name-field input { width: 100%; }
+.list-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; flex-wrap: wrap; }
+.list-save { background: var(--accent-2); }
+.list-delete-description { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+.list-delete-description strong { color: var(--text); }
+
 /* lists page */
 .lists-panel .create-list { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
 .lists-panel .create-list input { flex: 1; max-width: 320px; }
@@ -169,7 +183,7 @@ table.buylist { width: 100%; border-collapse: collapse; }
 .price-sparkline { display: block; }
 .price-sparkline.trend-up { color: #f28b82; }
 .price-sparkline.trend-down { color: #7dd65a; }
-.price-sparkline.trend-flat { color: var(--muted); }
+.price-sparkline.trend-flat { color: #60a5fa; }
 
 /* clickable suggested price */
 .suggested-price-link {
@@ -253,31 +267,61 @@ html.card-preview-open { overflow: hidden; }
 /* generic hidden helper */
 .hidden { display: none; }
 
-/* top progress bar (SSE fetch progress) */
-.progress {
+/* Modal loading state: native dialog makes the rest of the app inert. */
+html.progress-open { overflow: hidden; }
+.progress-dialog {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 22px;
-  background: var(--panel-2);
-  z-index: 50;
-  display: flex;
-  align-items: center;
-}
-.progress.hidden { display: none; }
-.progress-fill {
-  height: 100%;
-  width: 0%;
-  background: var(--accent-2);
-  transition: width 0.15s ease;
-}
-.progress-label {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 0.72rem;
+  inset: 0;
+  margin: auto;
+  width: min(420px, calc(100vw - 32px));
+  max-width: none;
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: 32px;
+  border: 1px solid #35483e;
+  border-radius: 22px;
   color: var(--text);
+  background: radial-gradient(ellipse at top, #1e332a 0%, #191e24 65%);
+  box-shadow: 0 24px 80px #0009, 0 0 48px #4ade8010;
+  text-align: center;
+}
+.progress-dialog::backdrop {
+  background: rgba(32, 36, 43, 0.72);
+  backdrop-filter: grayscale(1) blur(3px);
+}
+.progress-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 20px;
+  border: 1px solid #4ade8038;
+  border-radius: 18px;
+  color: #4ade80;
+  background: #4ade8010;
+}
+.progress-icon svg { width: 27px; height: 27px; animation: progress-spin 3s linear infinite; }
+.progress-eyebrow { margin: 0 0 8px; color: #86efac; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.16em; }
+#progress-title { margin: 0; font-size: 1.5rem; letter-spacing: -0.025em; outline: none; }
+#progress-description { margin: 10px 0 26px; color: #a6b4ac; font-size: 0.85rem; line-height: 1.6; }
+.progress-meta { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+#progress-label { color: #b9c6bf; font-size: 0.75rem; text-align: left; }
+#progress-percent { color: #86efac; font-size: 1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.progress-track { height: 10px; overflow: hidden; border-radius: 99px; background: #0d1712; border: 1px solid #ffffff0d; }
+.progress-fill { height: 100%; width: 0%; border-radius: inherit; background: #4ade80; box-shadow: 0 0 16px #4ade8055; transition: width 0.25s ease; }
+.progress-track.indeterminate .progress-fill { width: 35%; animation: progress-slide 1.5s ease-in-out infinite; }
+.progress-note { display: flex; justify-content: center; align-items: center; gap: 7px; margin: 22px 0 0; color: #8a9990; font-size: 0.7rem; }
+.progress-note svg { width: 13px; height: 13px; flex: none; }
+@keyframes progress-spin { to { transform: rotate(360deg); } }
+@keyframes progress-slide { from { transform: translateX(-110%); } to { transform: translateX(390%); } }
+@media (prefers-reduced-motion: reduce) {
+  .progress-icon svg, .progress-track.indeterminate .progress-fill { animation: none; }
+  .progress-fill { transition: none; }
+}
+@media (max-width: 480px), (max-height: 480px) {
+  .progress-dialog { padding: 24px; }
+  .progress-icon { margin-bottom: 12px; }
+  #progress-description { margin-bottom: 18px; }
 }
 
 /* quantity prompt overlay */

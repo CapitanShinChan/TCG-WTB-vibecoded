@@ -9,10 +9,28 @@
   <script src="/static/debug.js"></script>
 </head>
 <body>
-  <div id="progress" class="progress hidden">
-    <div id="progress-fill" class="progress-fill"></div>
-    <span id="progress-label"></span>
-  </div>
+  <dialog id="progress" class="progress-dialog" aria-labelledby="progress-title" aria-describedby="progress-description">
+    <div class="progress-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 7v5h-5M4 17v-5h5" />
+        <path d="M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3A7 7 0 0 0 17.9 17" />
+      </svg>
+    </div>
+    <p class="progress-eyebrow">PLEASE WAIT</p>
+    <h2 id="progress-title" tabindex="-1" autofocus>Updating prices</h2>
+    <p id="progress-description">Fetching the latest market prices for your cards.</p>
+    <div class="progress-meta">
+      <span id="progress-label" role="status" aria-live="polite">Connecting…</span>
+      <span id="progress-percent" aria-hidden="true">—</span>
+    </div>
+    <div id="progress-track" class="progress-track" role="progressbar" aria-labelledby="progress-title" aria-valuemin="0" aria-valuemax="100">
+      <div id="progress-fill" class="progress-fill"></div>
+    </div>
+    <p class="progress-note">
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5" y="10" width="14" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
+      Controls are paused while this runs
+    </p>
+  </dialog>
   <header class="topbar">
     <a class="brand" href="/">🃏 Card Inventory</a>
     <nav>
@@ -25,6 +43,8 @@
   </header>
   <main>
     <p id="catalogue-warning" class="warn-banner hidden" role="status"></p>
+    <p id="price-refresh-error" class="warn-banner hidden" role="alert"></p>
+    <p id="buylist-action-error" class="warn-banner hidden" role="alert"></p>
     {% block content %}{% endblock %}
   </main>
 
@@ -46,9 +66,12 @@
     </figure>
   </dialog>
 
+  {% include "_buylist_editor.html" %}
+
   <script src="/static/card-preview.js"></script>
   <script src="/static/catalogue.js"></script>
   {% block scripts %}{% endblock %}
   <script src="/static/buylist.js"></script>
+  <script src="/static/buylist-management.js"></script>
 </body>
 </html>

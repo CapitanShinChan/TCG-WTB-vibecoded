@@ -1,7 +1,7 @@
 """Buylist export: filtering + text rendering for Discord and .txt files.
 
 Two output formats:
-- Discord "WTB" message: grouped by set, one emoji per set header, each card
+- Discord "WTB" message: grouped by set, themed emojis per set header, each card
   line in the import format plus its suggested price (e.g. "3x RF Flowstate
   Embodiment 3$").
 - Re-importable list: plain import-format lines (no grouping, no price) that
@@ -10,6 +10,7 @@ Two output formats:
 from __future__ import annotations
 
 from .models import BuylistItem
+from .providers.fab_sets import gem_set_code
 from .treatments import has_treatment
 
 # foiling value -> import code (standard/non-foil has no code)
@@ -17,8 +18,24 @@ _FOILING_CODE = {"Rainbow": "RF", "Cold": "CF", "Marvel": "MV"}
 _DISCORD_HEADER = "WTB (OBO, price per card:"
 _OTHERS = "Others"
 
+# Wrapper colors from official pack artwork (source links in README.md).
+_GEM_EMOJI = {
+    "GEM1": "🔴",    # deep red
+    "GEM2": "🔵",    # teal/blue
+    "GEM3": "🔴🔵",  # red and blue/indigo
+    "GEM4": "⚪",    # pearl/ivory
+    "GEM5": "🔵🟣",  # cyan and purple
+    "GEM6": "🟣",    # dark purple
+}
+
 
 def set_of(item: BuylistItem) -> str:
+    # Older saved rows may still say GEM until startup normalization runs.
+    # Resolve on read so choices, filters and both export formats agree now.
+    if item.game == "flesh-and-blood":
+        pack = gem_set_code(item.printing_id)
+        if pack:
+            return pack
     return item.set_code or _OTHERS
 
 
@@ -55,7 +72,9 @@ def card_line(item: BuylistItem, *, with_price: bool) -> str:
     mid = f"{codes} " if codes else ""
     line = f"{item.quantity}x {mid}{item.card_name}"
     if with_price:
-        price = _price_str(item.suggested_price)
+        # Export-only asking price: do not rewrite the saved suggestion.
+        suggested = 0.5 if item.suggested_price == 0 else item.suggested_price
+        price = _price_str(suggested)
         if price:
             line += f" {price}"
     return line
@@ -102,7 +121,9 @@ def discord_text(items: list[BuylistItem]) -> str:
     lines = [_DISCORD_HEADER]
     for set_name, group in _grouped_by_set(items):
         lines.append("")
-        lines.append(f"📦 {set_name}")
+        emoji = (_GEM_EMOJI.get(set_name, "📦")
+                 if all(it.game == "flesh-and-blood" for it in group) else "📦")
+        lines.append(f"{emoji} {set_name}")
         for it in group:
             lines.append(card_line(it, with_price=True))
     return "\n".join(lines)

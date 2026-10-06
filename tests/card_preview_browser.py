@@ -7,7 +7,7 @@ import mimetypes
 import os
 from pathlib import Path
 import unittest
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from playwright.sync_api import sync_playwright, expect
@@ -27,10 +27,10 @@ ENV.filters["printing_code"] = lambda item: item["printing_label"]
 ENV.filters["price_sparkline"] = sparkline
 
 
-def render(template, items=None):
+def render(template, items=None, *, scope="general", lists=None):
     return ENV.get_template(template).render(
         items=[ITEM, dict(ITEM, id=2, card_name="No image", image_url=None)] if items is None else items,
-        lists=[], scope="general", games=[], app_debug=False)
+        lists=lists or [], scope=scope, games=[], app_debug=False)
 
 
 class CardPreviewBrowserTests(unittest.TestCase):
@@ -148,14 +148,17 @@ class CardPreviewBrowserTests(unittest.TestCase):
         self.assertEqual(graphs.count(), 4)
         for graph, count in zip(graphs.all(), [10, 10, 3, 1]):
             self.assertEqual(graph.locator("circle").count(), count)
-            self.assertIn(f"{count} recorded prices", graph.get_attribute("aria-label"))
+            self.assertIn(f"Data points: {count}", graph.get_attribute("aria-label"))
+            self.assertEqual(graph.locator("title").count(), 1)
+            self.assertEqual(len(graph.locator("title").text_content().splitlines()), 3)
             box = graph.bounding_box()
             self.assertEqual((box["width"], box["height"]), (88, 28))
         self.assertEqual(graphs.nth(3).locator("polyline").count(), 0)
         self.assertEqual(graphs.nth(2).locator("circle").evaluate_all("els => new Set(els.map(e => e.getAttribute('cy'))).size"), 1)
         expect(self.page.locator(".price-history").last).to_contain_text("—")
-        self.assertNotEqual(graphs.nth(0).evaluate("el => getComputedStyle(el).color"),
-                            graphs.nth(1).evaluate("el => getComputedStyle(el).color"))
+        colors = [graph.evaluate("el => getComputedStyle(el).color") for graph in graphs.all()]
+        self.assertEqual(colors[:3], ["rgb(242, 139, 130)", "rgb(125, 214, 90)", "rgb(96, 165, 250)"])
+        self.assertEqual(colors[3], "rgb(96, 165, 250)")
         if os.getenv("CARD_INVENTORY_SCREENSHOT"):
             self.page.screenshot(path=os.environ["CARD_INVENTORY_SCREENSHOT"], full_page=True)
 
@@ -167,6 +170,88 @@ class CardPreviewBrowserTests(unittest.TestCase):
             first = self.page.locator("table.buylist tbody tr").first
             expect(first).to_contain_text(expected)
             expect(first.locator(".price-sparkline")).to_be_visible()
+        self.assertEqual(self.errors, [])
+
+    def test_quantity_changes_stay_on_the_current_view(self):
+        navigations = []
+        self.page.on("framenavigated", lambda frame: navigations.append(frame.url))
+        for path in ("/", "/buylist"):
+            for scope in ("all", "general", "2"):
+                with self.subTest(page=path, scope=scope):
+                    quantity = [2]
+                    posts = []
+                    lists = [{"id": 1, "name": "Dani"}, {"id": 2, "name": "Current list"}]
+                    def route_page(route):
+                        request_path = urlparse(route.request.url).path
+                        if request_path == "/buylist/qty":
+                            raw = route.request.post_data
+                            if "multipart/form-data" in route.request.headers.get("content-type", ""):
+                                import re
+                                data = {name: [value] for name, value in re.findall(r'name="([^\"]+)"\r\n\r\n([^\r]*)', raw)}
+                            else:
+                                data = parse_qs(raw)
+                            posts.append(data)
+                            quantity[0] = max(1, quantity[0] + int(data["delta"][0]))
+                            route.fulfill(json={"item_id": 1, "quantity": quantity[0]})
+                        elif request_path == path:
+                            route.fulfill(body=render("index.html" if path == "/" else "buylist.html",
+                                [dict(ITEM, quantity=quantity[0]), dict(ITEM, id=2, card_name="Z card")],
+                                scope=scope, lists=lists), content_type="text/html")
+                        else:
+                            route.fallback()
+                    self.page.route("**/*", route_page)
+                    self.page.goto("https://inventory.test" + path + "?scope=" + scope)
+                    if path == "/":
+                        self.page.locator("#query").fill("keep this search")
+                    header = self.page.locator("table.buylist thead th").nth(1)
+                    header.click()
+                    url = self.page.url
+                    before = len(navigations)
+                    row = self.page.locator("table.buylist tbody tr").first
+                    minus = row.get_by_role("button", name="−", exact=True)
+                    minus.click()
+                    expect(row.locator(".qty-controls > span")).to_have_text("1", timeout=3000)
+                    self.assertEqual(self.page.url, url)
+                    self.assertEqual(len(navigations), before)
+                    expect(self.page.locator(".buylist-scope")).to_have_value(scope)
+                    expect(header).to_have_class("sort-asc")
+                    expect(row.locator("td.qty")).to_have_attribute("data-sort", "1")
+                    row.get_by_role("button", name="+", exact=True).click()
+                    expect(row.locator(".qty-controls > span")).to_have_text("2")
+                    self.assertEqual(len(posts), 2)
+                    self.assertEqual(posts[0]["scope"], [scope])
+                    if path == "/":
+                        expect(self.page.locator("#query")).to_have_value("keep this search")
+                    self.assertEqual(self.errors, [])
+                    self.page.unroute("**/*", route_page)
+
+    def test_quantity_failure_keeps_value_and_reenables_controls(self):
+        self.page.goto("https://inventory.test/buylist?scope=general")
+        self.page.evaluate("""() => {
+          const original = window.fetch;
+          window.quantityRequests = 0;
+          window.fetch = (url, options) => {
+            if (String(url) === '/buylist/qty') {
+              window.quantityRequests++;
+              return new Promise(resolve => { window.resolveQuantity = resolve; });
+            }
+            return original(url, options);
+          };
+        }""")
+        row = self.page.locator("table.buylist tbody tr").first
+        minus = row.get_by_role("button", name="−", exact=True)
+        minus.click()
+        expect(minus).to_be_disabled()
+        expect(row.get_by_role("button", name="+", exact=True)).to_be_disabled()
+        row.locator('form[action="/buylist/qty"]').first.evaluate(
+            "form => form.dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}))")
+        self.assertEqual(self.page.evaluate("window.quantityRequests"), 1)
+        self.page.evaluate("window.resolveQuantity(new Response(JSON.stringify({detail: 'Update rejected'}), {status: 500}))")
+        expect(self.page.locator("#buylist-action-error")).to_contain_text("Update rejected")
+        expect(row.locator(".qty-controls > span")).to_have_text("2")
+        expect(minus).to_be_enabled()
+        expect(row.get_by_role("button", name="+", exact=True)).to_be_enabled()
+        self.assertEqual(self.page.url, "https://inventory.test/buylist?scope=general")
         self.assertEqual(self.errors, [])
 
     def test_preview_fits_mobile_and_landscape_screens(self):

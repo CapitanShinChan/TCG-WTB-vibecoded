@@ -1,0 +1,18 @@
+<dialog id="buylist-editor" class="list-dialog" aria-labelledby="buylist-editor-title">
+  <h2 id="buylist-editor-title">Edit buylist</h2>
+  <p id="buylist-delete-description" class="list-delete-description hidden">
+    Permanently delete <strong id="buylist-delete-name"></strong> and all its card entries?
+    Cards in other buylists and General are not affected. This cannot be undone.
+  </p>
+  <form id="buylist-editor-form" action="/lists/rename" method="post">
+    <input type="hidden" name="list_id" id="buylist-editor-id">
+    <label id="buylist-name-field" class="list-name-field">Name
+      <input type="text" name="name" id="buylist-editor-name" required autocomplete="off">
+    </label>
+    <p id="buylist-editor-error" class="warn-banner hidden" role="alert"></p>
+    <div class="list-dialog-actions">
+      <button type="button" class="secondary" id="buylist-editor-cancel">Cancel</button>
+      <button type="submit" class="list-save" id="buylist-editor-save">Save changes</button>
+    </div>
+  </form>
+</dialog>

@@ -6,6 +6,7 @@ import datetime as dt
 import json
 import time
 from pathlib import Path
+from urllib.parse import urlencode
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Query, Request
 from fastapi.responses import (
@@ -46,6 +47,7 @@ from .pricing.tcgplayer import (
     variant_for_foiling,
 )
 from .providers import registry
+from .providers.fab_sets import GEM_SET_CODES, normalize_gem_metadata
 
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -401,10 +403,11 @@ _STANDARD_LABEL = "Standard"  # UI label for a non-foil (foiling is None)
 
 
 def _export_filter_options(items) -> tuple[list[str], list[str]]:
-    sets = sorted(
-        {export.set_of(it) for it in items},
-        key=lambda s: (s == "Others", s.lower()),
-    )
+    set_codes = {export.set_of(it) for it in items}
+    if any(it.game == "flesh-and-blood" and export.set_of(it) in GEM_SET_CODES for it in items):
+        # Keep every known pack selectable, including currently empty packs.
+        set_codes.update(GEM_SET_CODES)
+    sets = sorted(set_codes, key=lambda s: (s == "Others", s.lower()))
     foilings = sorted({it.foiling or _STANDARD_LABEL for it in items})
     return sets, foilings
 
@@ -619,6 +622,7 @@ def _upsert_buylist_item(
                 tcgplayer_product_id=tcgplayer_product_id,
             )
             reconcile_items(db, card_identifier, list_id, card=card)
+            set_code, printing_label = normalize_gem_metadata(printing_id, set_code, printing_label)
         except PrintingConflict as exc:
             raise HTTPException(409, str(exc)) from exc
         except FabraryError as exc:
@@ -633,6 +637,10 @@ def _upsert_buylist_item(
         )
     )
     if existing:
+        if game == "flesh-and-blood":
+            existing.set_code, existing.printing_label = normalize_gem_metadata(
+                existing.printing_id, existing.set_code, existing.printing_label,
+            )
         existing.quantity += quantity
         return False
     db.add(
@@ -710,13 +718,18 @@ def buylist_remove(item_id: int = Form(...), db: Session = Depends(get_session))
 
 @app.post("/buylist/qty")
 def buylist_qty(
-    item_id: int = Form(...), delta: int = Form(...), db: Session = Depends(get_session)
+    request: Request,
+    item_id: int = Form(...), delta: int = Form(...),
+    scope: str = Form(SCOPE_ALL), db: Session = Depends(get_session),
 ):
     item = db.get(BuylistItem, item_id)
-    if item:
-        item.quantity = max(1, item.quantity + delta)
-        db.commit()
-    return RedirectResponse("/buylist", status_code=303)
+    if not item:
+        raise HTTPException(404, "Buylist item not found")
+    item.quantity = max(1, item.quantity + delta)
+    db.commit()
+    if "application/json" in request.headers.get("accept", ""):
+        return {"item_id": item.id, "quantity": item.quantity}
+    return RedirectResponse("/buylist?" + urlencode({"scope": scope}), status_code=303)
 
 
 # --- pricing ---------------------------------------------------------------

@@ -102,6 +102,23 @@ def _post_migrate() -> None:
                 "ON buylist_items (game, printing_id) WHERE list_id IS NULL"
             )
         )
+        _backfill_gem_sets(conn)
+
+
+def _backfill_gem_sets(conn) -> None:
+    """Idempotent metadata-only correction for already-saved FaB GEM entries."""
+    from .providers.fab_sets import normalize_gem_metadata
+
+    rows = conn.execute(text(
+        "SELECT id, printing_id, set_code, printing_label FROM buylist_items "
+        "WHERE game = :game AND (printing_id LIKE 'GEM%' OR printing_id LIKE 'fab:GEM%')"
+    ), {"game": "flesh-and-blood"}).mappings().all()
+    for row in rows:
+        set_code, label = normalize_gem_metadata(row["printing_id"], row["set_code"], row["printing_label"])
+        if (set_code, label) != (row["set_code"], row["printing_label"]):
+            conn.execute(text(
+                "UPDATE buylist_items SET set_code = :set_code, printing_label = :label WHERE id = :id"
+            ), {"set_code": set_code, "label": label, "id": row["id"]})
 
 
 def get_session():

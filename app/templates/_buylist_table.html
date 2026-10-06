@@ -1,5 +1,6 @@
 {# Reusable buylist table. Expects: items. Optional: empty_text, lists, scope. #}
 <div class="buylist-toolbar">
+  <div class="buylist-list-controls">
   <label class="scope-picker">List
     <select class="buylist-scope">
       <option value="all" {% if scope in (None, 'all') %}selected{% endif %}>All</option>
@@ -9,6 +10,16 @@
       {% endfor %}
     </select>
   </label>
+  {% for l in lists | default([]) %}
+    {% if scope | string == l.id | string %}
+    <button type="button" class="secondary" data-edit-buylist data-list-id="{{ l.id }}"
+            data-list-name="{{ l.name }}" aria-haspopup="dialog" aria-controls="buylist-editor">Edit buylist</button>
+    <button type="button" class="remove" data-delete-buylist data-list-id="{{ l.id }}"
+            data-list-name="{{ l.name }}" aria-haspopup="dialog" aria-controls="buylist-editor">Delete buylist</button>
+    {% endif %}
+  {% endfor %}
+  <a class="ext" href="/lists">Manage lists</a>
+  </div>
   {% if items %}
   <form method="post" action="/buylist/refresh-all">
     <button type="submit" class="refresh-all">↻ Refresh all prices</button>
@@ -65,12 +76,14 @@
           <form method="post" action="/buylist/qty">
             <input type="hidden" name="item_id" value="{{ it.id }}">
             <input type="hidden" name="delta" value="-1">
+            <input type="hidden" name="scope" value="{{ scope | default('all', true) }}">
             <button type="submit" class="qbtn">−</button>
           </form>
           <span>{{ it.quantity }}</span>
           <form method="post" action="/buylist/qty">
             <input type="hidden" name="item_id" value="{{ it.id }}">
             <input type="hidden" name="delta" value="1">
+            <input type="hidden" name="scope" value="{{ scope | default('all', true) }}">
             <button type="submit" class="qbtn">+</button>
           </form>
         </div>

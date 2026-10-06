@@ -4,6 +4,7 @@ from __future__ import annotations
 from ..fabrary.client import card_image_url
 from ..fabrary.client import client as fabrary
 from .base import CardResult, GameProvider, Printing
+from .fab_sets import gem_set_code
 from ..treatments import encode_treatments
 
 
@@ -14,12 +15,17 @@ class FleshAndBloodProvider(GameProvider):
     def search(self, name: str) -> list[CardResult]:
         results = []
         for c in fabrary.search_cards(name):
+            gem_sets = sorted({gem_set_code(p.get("print")) or "GEM"
+                               for p in c.get("printings") or [] if p.get("set") == "GEM"})
+            sets = []
+            for set_name in c.get("sets") or []:
+                sets.extend((gem_sets or ["GEM"]) if set_name == "GEM" else [set_name])
             results.append(
                 CardResult(
                     identifier=c["cardIdentifier"],
                     name=c["name"],
                     image=card_image_url(c.get("defaultImage")),
-                    sets=c.get("sets") or [],
+                    sets=list(dict.fromkeys(sets)),
                     rarities=c.get("rarities") or [],
                 )
             )
@@ -35,7 +41,7 @@ class FleshAndBloodProvider(GameProvider):
             out.append(
                 Printing(
                     identifier=f"fab:{p['print']}",
-                    set_code=p.get("set"),
+                    set_code=gem_set_code(p["print"]) or p.get("set"),
                     edition=p.get("edition"),
                     foiling=p.get("foiling"),
                     treatment=encode_treatments(p.get("treatments") or []),

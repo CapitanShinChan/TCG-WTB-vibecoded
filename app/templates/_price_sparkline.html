@@ -6,7 +6,7 @@
   <polyline points="{{ chart.line }}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
   {% endif %}
   {% for point in chart.points %}
-  <circle cx="{{ point.x }}" cy="{{ point.y }}" r="2" fill="currentColor"><title>{{ point.title }}</title></circle>
+  <circle cx="{{ point.x }}" cy="{{ point.y }}" r="2" fill="currentColor" />
   {% endfor %}
 </svg>
 {% else %}

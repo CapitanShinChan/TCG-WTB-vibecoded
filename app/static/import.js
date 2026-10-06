@@ -36,6 +36,8 @@ async function runPreview() {
       "/api/import/preview-stream",
       { game: gameSel.value, text },
       {
+        title: "Checking card list",
+        description: "Matching your cards to the catalogue before import.",
         onResult: (res) => {
           lines = res.lines;
           renderPreview();

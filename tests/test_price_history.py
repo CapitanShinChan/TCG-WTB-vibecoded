@@ -138,10 +138,13 @@ class PriceHistoryTests(unittest.TestCase):
         self.assertLess(html.index('>History</th>'), html.index('>Suggested</th>'))
         svg = ET.fromstring(re.search(r"<svg.*?</svg>", html, re.S).group())
         self.assertEqual(svg.attrib["role"], "img")
-        self.assertIn("2 recorded prices", svg.attrib["aria-label"])
-        self.assertIn("USD", svg.attrib["aria-label"])
+        self.assertIn("Data points: 2", svg.attrib["aria-label"])
+        self.assertNotIn("USD", svg.attrib["aria-label"])
         self.assertEqual(len(svg.findall("circle")), 2)
-        self.assertIn("2026-01-01", "".join(svg.itertext()))
+        self.assertEqual(len(svg.findall(".//title")), 1, "Points must not override the concise graph tooltip")
+        # XML parsers normalize attribute newlines; compare accessible content.
+        self.assertEqual(" ".join(svg.find("title").text.split()), " ".join(svg.attrib["aria-label"].split()))
+        self.assertRegex(svg.attrib["aria-label"], r"Last update: \d{4}/\d{2}/\d{2}$")
 
     def test_all_refresh_routes_persist_history_and_scoped_tables_render_it(self):
         from fastapi.testclient import TestClient
@@ -185,7 +188,7 @@ class PriceHistoryTests(unittest.TestCase):
                 response = http.get(url, params={"scope": deck_id})
                 self.assertEqual(response.status_code, 200, response.text)
                 self.assertIn('class="price-sparkline', response.text)
-                self.assertIn("3 recorded prices", response.text)
+                self.assertIn("Data points: 3", response.text)
 
     def test_unpriced_item_and_unknown_legacy_date_do_not_invent_history(self):
         self.item.price = None

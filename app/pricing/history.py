@@ -1,7 +1,7 @@
 """Bounded current-market observations, oldest first (not upstream sale buckets)."""
 from __future__ import annotations
 
-from datetime import timezone
+from datetime import datetime, timezone
 import math
 
 HISTORY_LIMIT = 10
@@ -67,7 +67,7 @@ def sparkline(history) -> dict:
     """Geometry and accessible text for a tiny, individually scaled SVG chart."""
     observations = [p for p in (history or []) if valid_price(p.get("price"))][-HISTORY_LIMIT:]
     if not observations:
-        return {"points": [], "label": "No recorded prices yet. Refresh prices to start history."}
+        return {"points": [], "label": "Data points: 0\nChange: N/A\nLast update: Unknown"}
     prices = [p["price"] for p in observations]
     low, high = min(prices), max(prices)
     count = len(prices)
@@ -75,10 +75,31 @@ def sparkline(history) -> dict:
     for i, p in enumerate(observations):
         x = 44 if count == 1 else 4 + 80 * i / (count - 1)
         y = 14 if high == low else 24 - 20 * (p["price"] - low) / (high - low)
-        title = f"{p.get('at') or 'Date unknown'}: {p['price']:.2f} {p.get('currency') or ''}".strip()
-        points.append({"x": f"{x:.2f}", "y": f"{y:.2f}", "title": title})
+        points.append({"x": f"{x:.2f}", "y": f"{y:.2f}"})
     direction = "up" if prices[-1] > prices[0] else "down" if prices[-1] < prices[0] else "flat"
-    label = (f"Current market price history: {count} recorded prices, oldest to newest; {direction}. "
-             + "; ".join(p["title"] for p in points))
+    # Keep the reference consistent with the graph's first-to-last direction.
+    # High/low are extrema of the displayed observations, not local turning points.
+    change = "N/A"
+    if count > 1:
+        if direction == "flat":
+            change = "0.00%"
+        else:
+            reference = "low" if direction == "up" else "high"
+            baseline = low if direction == "up" else high
+            if baseline == 0:
+                change = f"N/A ({reference} is zero)"
+            else:
+                percent = (prices[-1] - baseline) / baseline * 100
+                if math.isfinite(percent):
+                    change = f"{percent:+.2f}% from {reference}"
+    updated = "Unknown"
+    try:
+        timestamp = datetime.fromisoformat(observations[-1].get("at"))
+        timestamp = (timestamp.replace(tzinfo=timezone.utc) if timestamp.tzinfo is None
+                     else timestamp.astimezone(timezone.utc))
+        updated = f"{timestamp.year:04d}/{timestamp.month:02d}/{timestamp.day:02d}"
+    except (TypeError, ValueError, OverflowError):
+        pass  # Do not invent a date for legacy observations without timestamps.
+    label = f"Data points: {count}\nChange: {change}\nLast update: {updated}"
     return {"points": points, "line": " ".join(f"{p['x']},{p['y']}" for p in points),
             "direction": direction, "label": label}
